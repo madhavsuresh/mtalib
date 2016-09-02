@@ -35,28 +35,40 @@ class server_accessor:
 
         def create_assignment(self, assignment_params):
             print self.server_url + 'create/assignment'
-            r = request.post(self.server_url + 'assignment/create', data = json.dumps(assignment_params))
+            r = requests.post(self.server_url + 'assignment/create', data = json.dumps(assignment_params))
+            return r
 
         def update_assignment(self, assignment_params):
             print self.server_url + 'update/assignment'
-            r = request.post(self.server_url + 'assignment/update', data = json.dumps(assignment_params))
+            r = requests.post(self.server_url + 'assignment/update', data = json.dumps(assignment_params))
 
         def get_assignment(self, params):
             print self.server_url + 'get/assignment'
-            r = request.post(self.server_url + 'assignment/get', data = json.dumps(params))
+            r = requests.post(self.server_url + 'assignment/get', data = json.dumps(params))
 
   ##################################rubrics ##############################################
 
         def create_rubric(self, rubric_params):
             print self.server_url + 'rubric/create'
-            r = request.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
+            r = requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
 
         def get_rubric(self, assignment_params):
             '''Gets all rubrics right now based on AssignmentID '''
             print self.server_url + 'rubric/get'
-            r = request.post(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
+            r = requests.post(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
 
         def update_rubric(self, assignment_params):
             print self.server_url + 'rubric/update'
-            r = request.post(self.server_url + 'rubric/update', data = json.dumps(assignment_params))
+            r = requests.post(self.server_url + 'rubric/update', data = json.dumps(assignment_params))
+
+############################### TESTING ##############################
+
+        def make_submissions(self, params):
+            print self.server_url + "makesubmissions"
+            r = requests.post(self.server_url + 'makesubmissions', data = json.dumps(params))
+
+        def create_peerreviewscores(self, peerreviewscores_params):
+            print self.server_url + "peerreviewscores/create"
+            r = requests.post(self.server_url + "peerreviewscores/create", data = json.dumps(peerreviewscores_params))
+
 
