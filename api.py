@@ -13,22 +13,22 @@ class server_accessor:
 		return self.server_url
 
 	def create_course(self, course_params):
-		print self.server_url + 'create'
-		r = requests.post(self.server_url + 'create', data=json.dumps(course_params))
+		print self.server_url + 'course/create'
+		r = requests.post(self.server_url + 'course/create', data=json.dumps(course_params))
 		return r
 
 	def update_course(self, course_params):
-		r = requests.post(self.server_url + 'update', data=json.dumps(course_params))
+		r = requests.post(self.server_url + 'course/update', data=json.dumps(course_params))
 		return r
 
 	def delete_course(self, courseID):
 		delete_data = {'courseID' : courseID}
-		r = requests.post(self.server_url + 'delete', data=json.dumps(delete_data))
+		r = requests.post(self.server_url + 'course/delete', data=json.dumps(delete_data))
 		return r
 
 	def get_course(self, courseID):
 		get_data = {'courseID' : courseID}
-		r = requests.get(self.server_url + 'get', data=json.dumps(delete_data))
+		r = requests.get(self.server_url + 'course/get', data=json.dumps(delete_data))
 		return r
 
 ################################## Assignments ###############################################3#
