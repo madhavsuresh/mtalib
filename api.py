@@ -44,7 +44,7 @@ class server_accessor:
 
         def get_assignment(self, params):
             print self.server_url + 'get/assignment'
-            r = requests.post(self.server_url + 'assignment/get', data = json.dumps(params))
+            r = requests.get(self.server_url + 'assignment/get', data = json.dumps(params))
 
   ##################################rubrics ##############################################
 
@@ -55,7 +55,7 @@ class server_accessor:
         def get_rubric(self, assignment_params):
             '''Gets all rubrics right now based on AssignmentID '''
             print self.server_url + 'rubric/get'
-            r = requests.post(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
+            r = requests.get(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
 
         def update_rubric(self, assignment_params):
             print self.server_url + 'rubric/update'
