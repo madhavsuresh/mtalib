@@ -36,39 +36,42 @@ class server_accessor:
         def create_assignment(self, assignment_params):
             print self.server_url + 'create/assignment'
             r = requests.post(self.server_url + 'assignment/create', data = json.dumps(assignment_params))
+	    print r
             return r
 
         def update_assignment(self, assignment_params):
             print self.server_url + 'update/assignment'
             r = requests.post(self.server_url + 'assignment/update', data = json.dumps(assignment_params))
-
+            return r
         def get_assignment(self, params):
             print self.server_url + 'get/assignment'
             r = requests.get(self.server_url + 'assignment/get', data = json.dumps(params))
-
+            return r
   ##################################rubrics ##############################################
 
         def create_rubric(self, rubric_params):
             print self.server_url + 'rubric/create'
             r = requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
-
+            return r
         def get_rubric(self, assignment_params):
             '''Gets all rubrics right now based on AssignmentID '''
-            print self.server_url + 'rubric/get'
+            #$print self.server_url + 'rubric/get'
+            print "world"
             r = requests.get(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
-
+            print "hello"
+            return r
         def update_rubric(self, assignment_params):
             print self.server_url + 'rubric/update'
             r = requests.post(self.server_url + 'rubric/update', data = json.dumps(assignment_params))
-
+            return r
 ############################### TESTING ##############################
 
         def make_submissions(self, params):
             print self.server_url + "makesubmissions"
             r = requests.post(self.server_url + 'makesubmissions', data = json.dumps(params))
-
+	    return r
         def create_peerreviewscores(self, peerreviewscores_params):
             print self.server_url + "peerreviewscores/create"
             r = requests.post(self.server_url + "peerreviewscores/create", data = json.dumps(peerreviewscores_params))
-
+            return r
 
