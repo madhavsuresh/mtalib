@@ -14,13 +14,14 @@ class server_accessor:
     """Prints the url this instance is accessing"""
     return self.server_url
 
+############################ COURSE ###########################
+
   def create_course(self, name, displayName, authType='pdo', registrationType='Open', browsable=True):
     """Creates a course with optional values. name and displayName are required parameters and name must be unique for call to not return error"""
     course_params = locals()
     # hacky and ugly, not particularly robust, look to change in future
     course_params.pop('self', None)
-    r = requests.post(self.server_url + 'course/create', data=json.dumps(course_params))
-    return r
+    return requests.post(self.server_url + 'course/create', data=json.dumps(course_params))
 
   def update_course(self, courseID, name='', displayName='', authType='', registrationType='', browsable=''):
     """Updates course specified by courseID with any additional optional parameters specified by user"""
@@ -29,22 +30,44 @@ class server_accessor:
     params.pop('self', None)
     course_params = {key:value for (key, value) in params.iteritems() if value}
 
-    r = requests.post(self.server_url + 'course/update', data=json.dumps(course_params))
-    return r
+    return requests.post(self.server_url + 'course/update', data=json.dumps(course_params))
 
   def delete_course(self, courseID):
     """Deletes the course specified by ID"""
     delete_data = {'courseID' : courseID}
-    r = requests.post(self.server_url + 'course/delete', data=json.dumps(delete_data))
-    return r
+    return requests.post(self.server_url + 'course/delete', data=json.dumps(delete_data))
 
   def get_course(self, courseID=""):
     """If a courseID is supplied this returns the information associated with that class, without a specified courseID this returns a list of courses with courseID, name, displayName and browsable values for each course"""
     get_data = {}
     if courseID:
       get_data['courseID'] = courseID
-    r = requests.get(self.server_url + 'course/get', data=json.dumps(get_data))
-    return r
+    return requests.get(self.server_url + 'course/get', data=json.dumps(get_data))
+
+############################ USERS ###########################
+
+  def create_users(self, course_id, list_of_users):
+    """Accepts a courseID and a list of user dictionaries and creates the given users under that course"""
+    create_data = {'courseID' : course_id, 'users' : list_of_users}
+    return requests.post(self.server_url + 'user/create', data = json.dumps(create_data))
+
+  def update_users(self, course_id, list_of_users):
+    """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
+    update_data = {'courseID' : course_id, 'users' : list_of_users}
+    return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
+
+  def drops_users(self, course_id, list_of_users):
+    """Accepts a courseID and a list of usernames and drops the given users under that course"""
+    delete_data = {'courseID' : course_id, 'users' : list_of_users}
+    return requests.post(self.server_url + 'user/delete', data = json.dumps(delete_data))
+
+  def get_users(self, course_id, list_of_users=""):
+    """Accepts a courseID and an optional list of usernames. Without the list of usernames this returns a list of users by username in the given course, with the optional list this returns more detailed info on each given username"""
+    get_data = {'courseID' : course_id}
+    if list_of_users:
+      get_data['users'] = list_of_users
+    return requests.get(self.server_url + 'user/get', data = json.dumps(get_data))
+
 
 ################################## Assignments ###############################################3#
 
