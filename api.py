@@ -56,7 +56,7 @@ class server_accessor:
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
-  def drops_users(self, course_id, list_of_users):
+  def delete_users(self, course_id, list_of_users):
     """Accepts a courseID and a list of usernames and drops the given users under that course"""
     delete_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/delete', data = json.dumps(delete_data))
