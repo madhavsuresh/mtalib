@@ -126,6 +126,14 @@ class server_accessor:
     del assignment_params['self']
     return requests.get(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
 
+############################### GRADES ##############################
+
+def set_grades(courseID, assignmentID, grades):
+  """Sets grades for a given assignmentID under the given course using the passed in list of (submissionID, grades) tuples"""
+  grades_params = locals()
+  del grades_params['self']
+  r = requests.post(server_url + 'grades/create', data = json.dumps(grades_params))
+
 ############################### TESTING ##############################
 
   def make_submissions(self, courseID, assignmentID):
