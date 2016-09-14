@@ -58,7 +58,7 @@ class server_accessor:
     return requests.post(self.server_url + 'user/create', data = json.dumps(create_data))
 
   def update_users(self, course_id, list_of_users):
-    """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
+  """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
@@ -143,18 +143,15 @@ class server_accessor:
   def make_submissions(self, courseID, assignmentID):
     make_submissions_params = locals()
     del make_submissions_params['self']
-
     return requests.post(self.server_url + 'makesubmissions', data = json.dumps(make_submissions_params))
-
-  def make_peer_reviews(self):
-    # take assignmentID, create peerreviewscores for all students
-    pass
 
   def create_peerreviewscores(self, peerreviewscores_params):
     return requests.post(self.server_url + 'peerreviewscores/create', data = json.dumps(peerreviewscores_params))
 
-  def get_peerreviewscores(self):
-    pass
+  def get_peerreviewscores(self, courseID, assignmentID):
+    peer_review_scores_params = locals()
+    del peer_review_scores_params['self']
+    return requests.get(self.server_url + 'peerreviewscores/testing', data = json.dumps(peer_review_scores_params))
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
