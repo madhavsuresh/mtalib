@@ -146,13 +146,13 @@ class server_accessor:
     del make_submissions_params['self']
     return requests.post(self.server_url + 'makesubmissions', data = json.dumps(make_submissions_params))
 
-  def create_peerreviewscores(self, peerreviewscores_params):
-    return requests.post(self.server_url + 'peerreviewscores/create', data = json.dumps(peerreviewscores_params))
+  def create_peerreviews(self, peerreviews_params):
+    return requests.post(self.server_url + 'peerreviews/create', data = json.dumps(peerreviews_params))
 
-  def get_peerreviewscores(self, courseID, assignmentID):
+  def get_peerreviews(self, courseID, assignmentID):
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
-    return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
+    return requests.get(self.server_url + 'peerreviews/get', data = json.dumps(peer_review_scores_params))
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
