@@ -59,7 +59,7 @@ class server_accessor:
     return requests.post(self.server_url + 'user/create', data = json.dumps(create_data))
 
   def update_users(self, course_id, list_of_users):
-  """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
+    """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
