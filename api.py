@@ -166,6 +166,7 @@ class server_accessor:
 
   def string_time_to_datetime(self, string_time):
     return datetime.strptime(string_time, self.date_fmt)
+>>>>>>> 4f72851ff9a7823f1df14329aa76f5e4a761fcda
 
   def convert_assignment_datetimes_to_unix_time(self, dict_to_update):
     time_fields = ['submissionStartDate', 'submissionStopDate', 'reviewStartDate', 'reviewStopDate', 'markPostDate', 'appealStopDate']
