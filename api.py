@@ -15,7 +15,7 @@ class server_accessor:
     self.server_url = p_server_url;
     self.timezone = timezone(local_timezone)
     self.date_fmt = date_fmt
-    self.courseID =
+    # self.courseID =
 
   def __str__(self):
     """Prints the url this instance is accessing"""
@@ -153,6 +153,11 @@ class server_accessor:
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
     return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
+
+  def get_peerreview_grades(self, courseID, assignmentID, submissionID):
+
+    review = self.get_peerreviews(courseID, assignmentID)
+
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
