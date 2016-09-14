@@ -7,15 +7,16 @@ class server_accessor:
   server_url = ''
   timezone = ''
   date_fmt = ''
+  courseID = None
 
-  def __init__(self, p_server_url,courseID = 1, local_timezone = 'US/Central', date_fmt = '%m/%d/%Y %H:%M:%S'):
+  def __init__(self, p_server_url, course_id = 1, local_timezone = 'US/Central', date_fmt = '%m/%d/%Y %H:%M:%S'):
     """Creates a server_accessor instance. Required param: p_server_url - MechTA instance API url. Optional params: local_timezone - pytz formatted timezone (default value: US/Central), date_fmt - string format for passed in dates (default value: '%m/%d/%Y %H:%M:%S')"""
     if p_server_url[-1:] != '/':
       p_server_url += '/'
     self.server_url = p_server_url;
     self.timezone = timezone(local_timezone)
     self.date_fmt = date_fmt
-    # self.courseID =
+    self.courseID = course_id
 
   def __str__(self):
     """Prints the url this instance is accessing"""
@@ -30,7 +31,7 @@ class server_accessor:
     del course_params['self']
     return requests.post(self.server_url + 'course/create', data=json.dumps(course_params))
 
-  def update_course(self, courseID, name='', displayName='', authType='', registrationType='', browsable=''):
+  def update_course(self, courseID = self.courseID, name='', displayName='', authType='', registrationType='', browsable=''):
     """Updates course specified by courseID with any additional optional parameters specified by user"""
     params = locals()
     # hacky and ugly, not particularly robust, look to change in future
@@ -39,7 +40,7 @@ class server_accessor:
 
     return requests.post(self.server_url + 'course/update', data=json.dumps(course_params))
 
-  def delete_course(self, courseID):
+  def delete_course(self, courseID = self.courseID):
     """Deletes the course specified by ID"""
     delete_data = {'courseID' : courseID}
     return requests.post(self.server_url + 'course/delete', data=json.dumps(delete_data))
@@ -53,22 +54,22 @@ class server_accessor:
 
   ############################ USERS ###########################
 
-  def create_users(self, course_id, list_of_users):
+  def create_users(self, list_of_users, courseID = self.courseID):
     """Accepts a courseID and a list of user dictionaries and creates the given users under that course"""
     create_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/create', data = json.dumps(create_data))
 
-  def update_users(self, course_id, list_of_users):
+  def update_users(self, list_of_users, courseID = self.courseID):
     """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
-  def delete_users(self, course_id, list_of_users):
+  def delete_users(self, list_of_users, courseID = self.courseID):
     """Accepts a courseID and a list of usernames and drops the given users under that course"""
     delete_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/delete', data = json.dumps(delete_data))
 
-  def get_users(self, course_id, list_of_users=""):
+  def get_users(self, courseID = self.courseID, list_of_users=""):
     """Accepts a courseID and an optional list of usernames. Without the list of usernames this returns a list of users by username in the given course, with the optional list this returns more detailed info on each given username"""
     get_data = {'courseID' : course_id}
     if list_of_users:
@@ -77,7 +78,7 @@ class server_accessor:
 
   ################################## Assignments ######################################
 
-  def create_assignment(self, courseID, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
+  def create_assignment(self, , name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = self.courseID, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
     """Creates an assignment based on the passed in parameters and on hardcoded defaults. Accepts either Unix epoch time or local time in format specified by constructor. Date parameters - [submissionStartDate, submissionStopDate, reviewStartDate, reviewStopDate, markPostDate, appealStopDate]. Also accepts a time offset in days."""
     assignment_params = locals()
     del assignment_params['self']
@@ -90,7 +91,7 @@ class server_accessor:
       self.add_day_offset(day_offset, defaults)
     return requests.post(self.server_url + 'assignment/create', data = json.dumps(defaults))
 
-  def update_assignment(self, courseID, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
+  def update_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = self.courseID, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
     """Updates an assignment based on the passed in parameters and on hardcoded defaults. Accepts either Unix epoch time or local time in format specified by constructor."""
     assignment_params = locals()
     del assignment_params['self']
@@ -102,7 +103,7 @@ class server_accessor:
       self.add_day_offset(day_offset, defaults)
     return requests.post(self.server_url + 'assignment/update', data = json.dumps(assignment_params))
 
-  def get_assignment(self, courseID, assignmentIDs):
+  def get_assignment(self, assignmentIDs, courseID = self.courseID):
     """Takes a courseID and a list of assignmentIDs and returns the information of the given assignments"""
     assignment_params = locals()
     del assignment_params['self']
@@ -111,14 +112,14 @@ class server_accessor:
 
   ################################## Rubrics ##########################################
 
-  def create_rubric(self, courseID, assignmentID, name, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
+  def create_rubric(self, assignmentID, name, courseID = self.courseID, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}]):
     """Creates rubric for given courseID and assignmentID with given name"""
     rubric_params = locals()
     del rubric_params['self']
 
     return requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
 
-  def update_rubric(self, courseID, assignmentID, name, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
+  def update_rubric(self, assignmentID, name, courseID = self.courseID, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
     """Creates rubric for given courseID and assignmentID with given name"""
     rubric_params = locals()
     del rubric_params['self']
@@ -133,7 +134,7 @@ class server_accessor:
 
   ############################### GRADES ##############################
 
-  def set_grades(courseID, assignmentID, grades):
+  def set_grades(courseID = self.courseID, assignmentID, grades):
     """Sets grades for a given assignmentID under the given course using the passed in list of (submissionID, grades) tuples"""
     grades_params = locals()
     del grades_params['self']
@@ -141,7 +142,7 @@ class server_accessor:
 
   ############################### TESTING ##############################
 
-  def make_submissions(self, courseID, assignmentID):
+  def make_submissions(self, assignmentID, courseID = self.courseID):
     make_submissions_params = locals()
     del make_submissions_params['self']
     return requests.post(self.server_url + 'makesubmissions', data = json.dumps(make_submissions_params))
@@ -149,18 +150,24 @@ class server_accessor:
   def create_peerreviews(self, peerreviews_params):
     return requests.post(self.server_url + 'peerreviews/create', data = json.dumps(peerreviews_params))
 
-  def get_peerreviews(self, courseID, assignmentID):
+  def get_peerreviews(self, assignmentID, courseID = self.courseID):
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
     return requests.get(self.server_url + 'peerreviews/get', data = json.dumps(peer_review_scores_params))
 
-  def get_peerreview_grades(self, courseID, assignmentID, submissionID):
+  def get_peerreview_grades(self, assignmentID, submissionID, courseID = self.courseID):
 
     review = self.get_peerreviews(courseID, assignmentID)
 
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
+
+  def calculate_grades(self):
+    # self.get_peerreview_grades()
+    # stuff
+    # self.set_grades()
+    pass
 
   ################################ HELPERS ################################
 
