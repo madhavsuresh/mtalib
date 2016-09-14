@@ -8,13 +8,14 @@ class server_accessor:
   timezone = ''
   date_fmt = ''
 
-  def __init__(self, p_server_url, local_timezone = 'US/Central', date_fmt = '%m/%d/%Y %H:%M:%S'):
+  def __init__(self, p_server_url,courseID = 1, local_timezone = 'US/Central', date_fmt = '%m/%d/%Y %H:%M:%S'):
     """Creates a server_accessor instance. Required param: p_server_url - MechTA instance API url. Optional params: local_timezone - pytz formatted timezone (default value: US/Central), date_fmt - string format for passed in dates (default value: '%m/%d/%Y %H:%M:%S')"""
     if p_server_url[-1:] != '/':
       p_server_url += '/'
     self.server_url = p_server_url;
     self.timezone = timezone(local_timezone)
     self.date_fmt = date_fmt
+    self.courseID =
 
   def __str__(self):
     """Prints the url this instance is accessing"""
@@ -151,7 +152,7 @@ class server_accessor:
   def get_peerreviewscores(self, courseID, assignmentID):
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
-    return requests.get(self.server_url + 'peerreviewscores/testing', data = json.dumps(peer_review_scores_params))
+    return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
@@ -166,7 +167,6 @@ class server_accessor:
 
   def string_time_to_datetime(self, string_time):
     return datetime.strptime(string_time, self.date_fmt)
->>>>>>> 4f72851ff9a7823f1df14329aa76f5e4a761fcda
 
   def convert_assignment_datetimes_to_unix_time(self, dict_to_update):
     time_fields = ['submissionStartDate', 'submissionStopDate', 'reviewStartDate', 'reviewStopDate', 'markPostDate', 'appealStopDate']
