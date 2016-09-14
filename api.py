@@ -153,12 +153,25 @@ class server_accessor:
   def get_peerreviews(self, assignmentID, courseID = self.courseID):
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
-    return requests.get(self.server_url + 'peerreviews/get', data = json.dumps(peer_review_scores_params))
+    return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
 
   def get_peerreview_grades(self, assignmentID, submissionID, courseID = self.courseID):
+    pr = self.get_peerreviews(courseID, assignmentID).json()
+    rubrics = self.get_rubric(assignmentID).json()
+    for key, value in pr.iteritems():
+        for x in range(len(value)):
+            answers = value[x]['answers']
+            for answers_key, answers_values in answers.iteritems():
+                for y in range(len(rubrics)):
+                    if rubrics[y]['questionID']['id'] == answers_key: # check for unicode if this works
+                        score_index = int(answers_values['int'])
+                        options = rubrics[y]['options']
+                        answers_values['score'] = float(options[score_index]['score'])
+                        print answers_values
+                        # print pr[key][x][answers_key]
 
-    review = self.get_peerreviews(courseID, assignmentID)
-
+                        print pr[key][x]['answers'][answers_key]
+    return pr
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
