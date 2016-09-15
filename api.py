@@ -78,7 +78,7 @@ class server_accessor:
 
   ################################## Assignments ######################################
 
-  def create_assignment(self, , name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = self.courseID, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
+  def create_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = self.courseID, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
     """Creates an assignment based on the passed in parameters and on hardcoded defaults. Accepts either Unix epoch time or local time in format specified by constructor. Date parameters - [submissionStartDate, submissionStopDate, reviewStartDate, reviewStopDate, markPostDate, appealStopDate]. Also accepts a time offset in days."""
     assignment_params = locals()
     del assignment_params['self']
@@ -134,7 +134,7 @@ class server_accessor:
 
   ############################### GRADES ##############################
 
-  def set_grades(courseID = self.courseID, assignmentID, grades):
+  def set_grades(assignmentID, grades, courseID = self.courseID):
     """Sets grades for a given assignmentID under the given course using the passed in list of (submissionID, grades) tuples"""
     grades_params = locals()
     del grades_params['self']
