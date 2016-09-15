@@ -31,8 +31,10 @@ class server_accessor:
     del course_params['self']
     return requests.post(self.server_url + 'course/create', data=json.dumps(course_params))
 
-  def update_course(self, courseID = self.courseID, name='', displayName='', authType='', registrationType='', browsable=''):
+  def update_course(self, courseID = None, name='', displayName='', authType='', registrationType='', browsable=''):
     """Updates course specified by courseID with any additional optional parameters specified by user"""
+    if courseID == None:
+        courseID = self.courseID
     params = locals()
     # hacky and ugly, not particularly robust, look to change in future
     del params['self']
@@ -40,8 +42,10 @@ class server_accessor:
 
     return requests.post(self.server_url + 'course/update', data=json.dumps(course_params))
 
-  def delete_course(self, courseID = self.courseID):
+  def delete_course(self, courseID = None):
     """Deletes the course specified by ID"""
+    if courseID == None:
+        courseID = self.courseID
     delete_data = {'courseID' : courseID}
     return requests.post(self.server_url + 'course/delete', data=json.dumps(delete_data))
 
@@ -54,23 +58,31 @@ class server_accessor:
 
   ############################ USERS ###########################
 
-  def create_users(self, list_of_users, courseID = self.courseID):
+  def create_users(self, list_of_users, course_id = None):
     """Accepts a courseID and a list of user dictionaries and creates the given users under that course"""
+    if course_id == None:
+        course_id = self.courseID
     create_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/create', data = json.dumps(create_data))
 
-  def update_users(self, list_of_users, courseID = self.courseID):
+  def update_users(self, list_of_users, course_id = None):
     """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
+    if course_id == None:
+        course_id = self.courseID
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
-  def delete_users(self, list_of_users, courseID = self.courseID):
+  def delete_users(self, list_of_users, course_id = None):
     """Accepts a courseID and a list of usernames and drops the given users under that course"""
+    if course_id == None:
+        course_id = self.courseID
     delete_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/delete', data = json.dumps(delete_data))
 
-  def get_users(self, courseID = self.courseID, list_of_users=""):
+  def get_users(self, course_id = None, list_of_users=""):
     """Accepts a courseID and an optional list of usernames. Without the list of usernames this returns a list of users by username in the given course, with the optional list this returns more detailed info on each given username"""
+    if course_id == None:
+        course_id = self.courseID
     get_data = {'courseID' : course_id}
     if list_of_users:
       get_data['users'] = list_of_users
@@ -78,8 +90,10 @@ class server_accessor:
 
   ################################## Assignments ######################################
 
-  def create_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = self.courseID, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
+  def create_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = None, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
     """Creates an assignment based on the passed in parameters and on hardcoded defaults. Accepts either Unix epoch time or local time in format specified by constructor. Date parameters - [submissionStartDate, submissionStopDate, reviewStartDate, reviewStopDate, markPostDate, appealStopDate]. Also accepts a time offset in days."""
+    if courseID == None:
+        courseID = self.courseID
     assignment_params = locals()
     del assignment_params['self']
 
@@ -91,8 +105,10 @@ class server_accessor:
       self.add_day_offset(day_offset, defaults)
     return requests.post(self.server_url + 'assignment/create', data = json.dumps(defaults))
 
-  def update_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = self.courseID, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
+  def update_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = None, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
     """Updates an assignment based on the passed in parameters and on hardcoded defaults. Accepts either Unix epoch time or local time in format specified by constructor."""
+    if courseID == None:
+        courseID = self.courseID
     assignment_params = locals()
     del assignment_params['self']
     defaults = {'password' : 'null', 'passwordMessage' : 'null', 'visibleToStudents' : 1, 'assignmentType' : 'peerreview', 'dateFormat' : 'MMMM Do YYYY, HH:mm', 'calibrationPoolAssignmentIds' : [], 'extraCalibrations' : 0, 'calibrationStartDate' : 0, 'calibrationStopDate' : 0, 'showMarksForReviewsReceived' : 1, 'showOtherReviewsByStudents' : 0, 'showOtherReviewsByInstructors' : 0, 'showMarksForOtherReviews' : 0, 'showMarksForReviewedSubmissions' : 0, 'showPoolStatus' : 0, 'calibrationMinCount' : 0,'calibrationMaxScore' : 0,'calibrationThresholdMSE' : 0,'calibrationThresholdScore' : 0, 'allowRequestOfReviews' : 0, 'submissionSettings' : {'topics' : [], 'autoAssignEssayTopic' : 1, 'essayWordLimit' : 10000}}
@@ -103,8 +119,10 @@ class server_accessor:
       self.add_day_offset(day_offset, defaults)
     return requests.post(self.server_url + 'assignment/update', data = json.dumps(assignment_params))
 
-  def get_assignment(self, assignmentIDs, courseID = self.courseID):
+  def get_assignment(self, assignmentIDs, courseID = None):
     """Takes a courseID and a list of assignmentIDs and returns the information of the given assignments"""
+    if courseID == None:
+        courseID = self.courseID
     assignment_params = locals()
     del assignment_params['self']
     print assignment_params
@@ -112,15 +130,19 @@ class server_accessor:
 
   ################################## Rubrics ##########################################
 
-  def create_rubric(self, assignmentID, name, courseID = self.courseID, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}]):
+  def create_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}]):
     """Creates rubric for given courseID and assignmentID with given name"""
+    if courseID == None:
+        courseID = self.courseID
     rubric_params = locals()
     del rubric_params['self']
 
     return requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
 
-  def update_rubric(self, assignmentID, name, courseID = self.courseID, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
+  def update_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
     """Creates rubric for given courseID and assignmentID with given name"""
+    if courseID == None:
+        courseID = self.courseID
     rubric_params = locals()
     del rubric_params['self']
 
@@ -134,15 +156,19 @@ class server_accessor:
 
   ############################### GRADES ##############################
 
-  def set_grades(assignmentID, grades, courseID = self.courseID):
+  def set_grades(assignmentID, grades, courseID = None):
     """Sets grades for a given assignmentID under the given course using the passed in list of (submissionID, grades) tuples"""
+    if courseID == None:
+        courseID = self.courseID
     grades_params = locals()
     del grades_params['self']
     r = requests.post(server_url + 'grades/create', data = json.dumps(grades_params))
 
   ############################### TESTING ##############################
 
-  def make_submissions(self, assignmentID, courseID = self.courseID):
+  def make_submissions(self, assignmentID, courseID = None):
+    if courseID == None:
+        courseID = self.courseID
     make_submissions_params = locals()
     del make_submissions_params['self']
     return requests.post(self.server_url + 'makesubmissions', data = json.dumps(make_submissions_params))
@@ -150,13 +176,20 @@ class server_accessor:
   def create_peerreviews(self, peerreviews_params):
     return requests.post(self.server_url + 'peerreviews/create', data = json.dumps(peerreviews_params))
 
-  def get_peerreviews(self, assignmentID, courseID = self.courseID):
+  def get_peerreviews(self, assignmentID, courseID = None):
+    if courseID == None:
+        courseID = self.courseID
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
     return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
 
-  def get_peerreview_grades(self, assignmentID, submissionID, courseID = self.courseID):
-    pr = self.get_peerreviews(courseID, assignmentID).json()
+  def get_peerreview_grades(self, assignmentID, submissionID, courseID = None):
+    print '********',
+    print courseID,
+    print '********'
+    if courseID == None:
+        courseID = self.courseID
+    pr = self.get_peerreviews(assignmentID, courseID).json()
     rubrics = self.get_rubric(assignmentID).json()
     for key, value in pr.iteritems():
         for x in range(len(value)):
@@ -167,10 +200,8 @@ class server_accessor:
                         score_index = int(answers_values['int'])
                         options = rubrics[y]['options']
                         answers_values['score'] = float(options[score_index]['score'])
-                        print answers_values
                         # print pr[key][x][answers_key]
 
-                        print pr[key][x]['answers'][answers_key]
     return pr
 
   def get_course_id_from_name(self, course_name):
