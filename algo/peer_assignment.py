@@ -1,6 +1,6 @@
 import math 
 import random
-import peer_review_util
+from peer_review_util import *
 
 ####
 # GENERATE PEER ASSIGNMENT
