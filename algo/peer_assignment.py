@@ -1,9 +1,6 @@
 import math 
 import random
-
-#note this will only work on hashable objects
-def duplicates(tocheck):
-  return len(tocheck) != len(set(tocheck))
+import peer_review_util
 
 ####
 # GENERATE PEER ASSIGNMENT

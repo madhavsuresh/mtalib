@@ -7,3 +7,7 @@ def invert_dictlist_dup(d):
     values = set(a for b in d.values() for a in b)
     reverse_d = dict((new_key, [key for key,value in d.items() if new_key in value]) for new_key in values)
     return reverse_d
+
+#note this will only work on hashable objects
+def duplicates(tocheck):
+  return len(tocheck) != len(set(tocheck))
