@@ -179,14 +179,14 @@ class server_accessor:
     #TODO: error checking
     return json.loads(r.text)
 
-  def peermatch_get(self, assignmentID): 
+  def peermatch_get(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = requests.post(self.server_url + 'peermatch/get', data=json.dumps(params))
     #TODO: error checking
     return json.loads(r.text)
- 
+
   def peermatch_create_bulk(self, assignmentID, peerMatchesList):
-    params = {'assignmentID': assignmentID, 'peerMatches': peerMatchesList} 
+    params = {'assignmentID': assignmentID, 'peerMatches': peerMatchesList}
     r = requests.post(self.server_url + 'peermatch/create_bulk', data=json.dumps(params))
     if r.text:
       return json.loads(r.text)
@@ -198,7 +198,7 @@ class server_accessor:
     params = {'assignmentID': assignmentID}
     r = requests.post(self.server_url + 'peermatch/get_peer_ids', data=json.dumps(params))
     return json.loads(r.text)
-	
+
   def peermatch_get_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = requests.post(self.server_url + 'peermatch/get_submission_ids', data=json.dumps(params))
@@ -235,6 +235,8 @@ class server_accessor:
     for key, value in pr.iteritems():
         for x in range(len(value)):
             answers = value[x]['answers']
+            if answers == []:
+                continue
             for answers_key, answers_values in answers.iteritems():
                 for y in range(len(rubrics)):
                     if rubrics[y]['questionID']['id'] == answers_key: # check for unicode if this works
@@ -276,6 +278,13 @@ class server_accessor:
         count += 1
         score += value['score']
     return score/count
+
+  def grading_alg(self, courseID = None):
+      if courseID == None:
+          courseID = self.courseID
+      ta_ids = self.get_tas_from_course(courseID)
+      pass
+
 
 
   def get_course_id_from_name(self, course_name):
