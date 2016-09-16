@@ -145,7 +145,6 @@ class server_accessor:
         courseID = self.courseID
     rubric_params = locals()
     del rubric_params['self']
-
     return requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
 
   def update_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
@@ -228,10 +227,7 @@ class server_accessor:
     del peer_review_scores_params['self']
     return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
 
-  def get_peerreview_grades(self, assignmentID, submissionID, courseID = None):
-    print '********',
-    print courseID,
-    print '********'
+  def get_peerreview_grades(self, assignmentID,courseID = None):
     if courseID == None:
         courseID = self.courseID
     pr = self.get_peerreviews(assignmentID, courseID).json()
@@ -248,6 +244,39 @@ class server_accessor:
                         # print pr[key][x][answers_key]
 
     return pr
+
+  def setup_for_vancover(self, assignmentID, courseID = None):
+    if courseID == None:
+        courseID = self.courseID
+    responses = self.get_peerreview_grades(assignmentID, courseID)
+    reviews = {}
+    truth = {}
+    for key, value in responses.iteritems():
+        truth[int(key.encode('ascii'))] = 2.5
+        for x in range(len(value)): # list of answers
+            curr_peer = {}
+            reviewer_id = int(value[x]['reviewerID']['id'].encode('ascii'))
+            answers = value[x]['answers'] # a dictionary or peer review responses
+            count = 0
+            for questionID, result in answers.iteritems():
+                new_question_id = key.encode('ascii') + ':' + str(count)
+                count += 1
+                if reviewer_id in reviews:
+                    reviews[reviewer_id][new_question_id] = result['score']
+                else:
+                    reviews[reviewer_id] = {}
+                    reviews[reviewer_id][new_question_id] = result['score']
+
+    return reviews, truth
+
+  def average_score(self, answer_dict):
+    count = 0
+    score = 0
+    for key, value in answer_dict.iteritems():
+        count += 1
+        score += value['score']
+    return score/count
+
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
