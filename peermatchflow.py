@@ -1,5 +1,5 @@
-from python_lib.mta.api import *
-from simulations.Python.peer_review_lib import *
+from api.api import *
+from algo.peer_assignment import *
 
 c = server_accessor('http://enron.cs.northwestern.edu/~madhav/peermatch/mta/api/')
 
