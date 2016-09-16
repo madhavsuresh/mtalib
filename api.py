@@ -88,6 +88,11 @@ class server_accessor:
       get_data['users'] = list_of_users
     return requests.get(self.server_url + 'user/get', data = json.dumps(get_data))
 
+  def get_tas_from_course(self, courseID):
+    params = {'courseID': courseID}
+    r = requests.get(self.server_url + 'user/get_tas_from_courseid', data=json.dumps(params))
+    return json.loads(r.text)
+
   ################################## Assignments ######################################
 
   def create_assignment(self, name, submissionQuestion, submissionStartDate = 1472352458, submissionStopDate = 2472352458, reviewStartDate = 1472352458, reviewStopDate = 2472352458, markPostDate = 2472352458, appealStopDate = 2472352458, courseID = None, day_offset = 0, maxSubmissionScore = 10, maxReviewScore = 5, defaultNumberOfReviews = 3, submissionType = 'essay'):
@@ -128,6 +133,10 @@ class server_accessor:
     print assignment_params
     return requests.get(self.server_url + 'assignment/get', data = json.dumps(assignment_params))
 
+  def get_courseID_from_assignmentID(self, assignmentID):
+    params = {'assignmentID': assignmentID}
+    r = requests.get(self.server_url + 'assignment/courseID_from_assignmentID', data=json.dumps(params))
+    return json.loads(r.text)
   ################################## Rubrics ##########################################
 
   def create_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}]):
@@ -164,6 +173,42 @@ class server_accessor:
     del grades_params['self']
     r = requests.post(server_url + 'grades/create', data = json.dumps(grades_params))
 
+################################ PEERMATCH ################################
+  def peermatch_create(self, assignmentID, submissionID, reviewerID):
+    params = {'assignmentID': assignmentID, 'peerMatch': {"submissionID" : submissionID, "reviewerID": reviewerID}}
+    r = requests.post(self.server_url + 'peermatch/create', data = json.dumps(params))
+    #TODO: error checking
+    return json.loads(r.text)
+
+  def peermatch_get(self, assignmentID): 
+    params = {'assignmentID': assignmentID}
+    r = requests.post(self.server_url + 'peermatch/get', data=json.dumps(params))
+    #TODO: error checking
+    return json.loads(r.text)
+ 
+  def peermatch_create_bulk(self, assignmentID, peerMatchesList):
+    params = {'assignmentID': assignmentID, 'peerMatches': peerMatchesList} 
+    r = requests.post(self.server_url + 'peermatch/create_bulk', data=json.dumps(params))
+    if r.text:
+      return json.loads(r.text)
+  def peermatch_delete_all(self, assignmentID):
+    params = {'assignmentID': assignmentID}
+    r = requests.post(self.server_url + 'peermatch/delete_all', data=json.dumps(params))
+    return json.loads(r.text)
+  def peermatch_get_peer_ids(self, assignmentID):
+    params = {'assignmentID': assignmentID}
+    r = requests.post(self.server_url + 'peermatch/get_peer_ids', data=json.dumps(params))
+    return json.loads(r.text)
+	
+  def peermatch_get_submission_ids(self, assignmentID):
+    params = {'assignmentID': assignmentID}
+    r = requests.post(self.server_url + 'peermatch/get_submission_ids', data=json.dumps(params))
+    return json.loads(r.text)
+
+  def peermatch_get_peer_and_submission_ids(self, assignmentID):
+    params = {'assignmentID': assignmentID}
+    r = requests.get(self.server_url + 'peermatch/get_peer_and_submission_ids', data=json.dumps(params))
+    return json.loads(r.text)
   ############################### TESTING ##############################
 
   def make_submissions(self, assignmentID, courseID = None):
