@@ -251,23 +251,32 @@ class server_accessor:
     if courseID == None:
         courseID = self.courseID
     responses = self.get_peerreview_grades(assignmentID, courseID)
+    ta_ids = self.get_tas_from_course(courseID)['taIDs']
     reviews = {}
     truth = {}
     for key, value in responses.iteritems():
-        truth[int(key.encode('ascii'))] = 2.5
         for x in range(len(value)): # list of answers
-            curr_peer = {}
-            reviewer_id = int(value[x]['reviewerID']['id'].encode('ascii'))
+            reviewer_id = str(value[x]['reviewerID']['id'].encode('ascii'))
             answers = value[x]['answers'] # a dictionary or peer review responses
-            count = 0
-            for questionID, result in answers.iteritems():
-                new_question_id = key.encode('ascii') + ':' + str(count)
-                count += 1
-                if reviewer_id in reviews:
-                    reviews[reviewer_id][new_question_id] = result['score']
-                else:
-                    reviews[reviewer_id] = {}
-                    reviews[reviewer_id][new_question_id] = result['score']
+            if answers == []:
+                continue
+            if int(reviewer_id) in ta_ids:
+                count = 0
+                for questionID, result in answers.iteritems():
+                    new_question_id = "submission " + key.encode('ascii') + ':' +questionID.encode('ascii')
+                    truth[new_question_id] = result['score']
+                    count += 1
+
+            else:
+                count = 0
+                for questionID, result in answers.iteritems():
+                    new_question_id = 'submission ' + key.encode('ascii') + ':' + questionID.encode('ascii')
+                    count += 1
+                    if reviewer_id in reviews:
+                        reviews[reviewer_id][new_question_id] = result['score']
+                    else:
+                        reviews[reviewer_id] = {}
+                        reviews[reviewer_id][new_question_id] = result['score']
 
     return reviews, truth
 
@@ -279,22 +288,54 @@ class server_accessor:
         score += value['score']
     return score/count
 
-  def grading_alg(self, courseID = None):
+  def grading_alg(self, assignmentID, courseID = None):
       if courseID == None:
           courseID = self.courseID
+      max_score_dict = {} # dictionary for easy access to max scores for each rubric question
       ta_ids = self.get_tas_from_course(courseID)
-      pass
+      rubrics = self.get_rubric(assignmentID).json()
+      for question in rubrics:
+          max_score_dict[question['questionID']['id']]= self.gen_max_rubric_score(question)
 
 
+      grades = {}
+
+      reviews,TA_truth = self.setup_for_vancover(assignmentID, courseID)
+      peer_reviews = self.get_peerreviews(assignmentID, courseID).json()
+      for key, value in reviews.iteritems(): # peer => dict of submissions => score
+          for submission, score in value.iteritems(): #loop through all given scores
+              #submission is the string index for the dict, submission_id is the q
+              if submission in TA_truth.keys():
+                  question_id = self.get_submission_question_id(submission)
+                  normalized_peer_score = score / max_score_dict[question_id]
+                  normalized_TA_score = TA_truth[submission]/max_score_dict[question_id]
+                  difference = 1 - abs(normalized_TA_score - normalized_peer_score)
+                  #TODO think about how the subtraction introduces float precission issues
+                  reviews[key][submission] = difference# normalizing by dividing by max score
+                  if key in grades:
+                      grades[key].append(difference)
+                  else:
+                      grades[key] = [difference]
+      for peer,normalized_grades in grades.iteritems(): # to average all peer normalized grades
+        grades[peer] = sum(normalized_grades)/len(normalized_grades)
+
+      return grades
+
+  def get_submission_question_id(self, submission_string):
+      '''Hacky specific function. setup for vancover makes a string 'submission 123:5 The number after the colon is the question id this just extracts that '''
+      for x in range(len(submission_string)):
+          if submission_string[x] == ':':
+              return submission_string[x+1:]
+
+  def gen_max_rubric_score(self, questiondict):
+    options = questiondict['options']
+    scores = [float(x['score']) for x in options]
+    max_score = max(scores)
+    return max_score
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
 
-  def calculate_grades(self):
-    # self.get_peerreview_grades()
-    # stuff
-    # self.set_grades()
-    pass
 
   ################################ HELPERS ################################
 
