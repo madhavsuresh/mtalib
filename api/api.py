@@ -247,7 +247,7 @@ class server_accessor:
 
     return pr
 
-  def setup_for_vancover(self, assignmentID, courseID = None):
+  def setup_for_vancouver(self, assignmentID, courseID = None):
     if courseID == None:
         courseID = self.courseID
     responses = self.get_peerreview_grades(assignmentID, courseID)
@@ -261,17 +261,17 @@ class server_accessor:
             if answers == []:
                 continue
             if int(reviewer_id) in ta_ids:
-                count = 0
                 for questionID, result in answers.iteritems():
                     new_question_id = "submission " + key.encode('ascii') + ':' +questionID.encode('ascii')
-                    truth[new_question_id] = result['score']
-                    count += 1
+                    if new_question_id in truth:
+                        truth[new_question_id] += result['score']
+                        truth[new_question_id] /= 2 # if 2 Ta's graded need to average their scores
+                    else:
+                        truth[new_question_id] = result['score']
 
             else:
-                count = 0
                 for questionID, result in answers.iteritems():
                     new_question_id = 'submission ' + key.encode('ascii') + ':' + questionID.encode('ascii')
-                    count += 1
                     if reviewer_id in reviews:
                         reviews[reviewer_id][new_question_id] = result['score']
                     else:
@@ -296,11 +296,11 @@ class server_accessor:
       rubrics = self.get_rubric(assignmentID).json()
       for question in rubrics:
           max_score_dict[question['questionID']['id']]= self.gen_max_rubric_score(question)
+          #max_scores are an addedd field now in a review
 
+      grades = {} # to be returned
 
-      grades = {}
-
-      reviews,TA_truth = self.setup_for_vancover(assignmentID, courseID)
+      reviews,TA_truth = self.setup_for_vancouver(assignmentID, courseID)
       peer_reviews = self.get_peerreviews(assignmentID, courseID).json()
       for key, value in reviews.iteritems(): # peer => dict of submissions => score
           for submission, score in value.iteritems(): #loop through all given scores
@@ -312,10 +312,10 @@ class server_accessor:
                   difference = 1 - abs(normalized_TA_score - normalized_peer_score)
                   #TODO think about how the subtraction introduces float precission issues
                   reviews[key][submission] = difference# normalizing by dividing by max score
-                  if key in grades:
+                  if key in grades: # need to check if we've seen this user id before
                       grades[key].append(difference)
                   else:
-                      grades[key] = [difference]
+                      grades[key] = [difference] # storing individual grades in a list to average at the end
       for peer,normalized_grades in grades.iteritems(): # to average all peer normalized grades
         grades[peer] = sum(normalized_grades)/len(normalized_grades)
 
