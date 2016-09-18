@@ -1,3 +1,4 @@
+from __future__ import division
 from peer_review_util import *
 
 MIN_VARIANCE = 0.001    # don't let 1/variance blow up if a peer is very accurate.

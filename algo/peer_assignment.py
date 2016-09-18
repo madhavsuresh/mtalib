@@ -1,3 +1,4 @@
+from __future__ import division
 import math 
 import random
 from peer_review_util import *

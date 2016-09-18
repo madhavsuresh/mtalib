@@ -1,3 +1,6 @@
+from __future__ import division
+
+
 # invert a dictionary of lists (assuming no duplicates)
 def invert_dictlist(d):
     return dict( (v,k) for k in d for v in d[k] )
