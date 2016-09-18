@@ -138,8 +138,13 @@ class server_accessor:
     r = requests.get(self.server_url + 'assignment/courseID_from_assignmentID',
                      data=json.dumps(params))
     return json.loads(r.text)
-  def get_all_assignments_from_course(self, courseID):
-      params = {'courseID': courseID}
+
+  def get_assignment_event(self, courseID, assignmentID=None):
+      if assignmentID:
+          params = {'courseID': courseID, 'assignmentID': assignmentID}
+      else:
+          params = {'courseID': courseID}
+
       r = requests.get(self.server_url +
                        'assignment/get_all_from_course',
                        data=json.dumps(params))
@@ -369,7 +374,10 @@ class server_accessor:
 
 
   ################################ EVENTS ################################
-  def events_get_all(self, courseID):
-      params = {'courseID': courseID}
-      r = requests.get(self.server_url + 'events/get_all', data=json.dumps(params))
+  def event_get(self, courseID, assignmentID=None):
+      if assignmentID:
+          params = {'courseID': courseID, 'assignmentID': assignmentID}
+      else:
+          params = {'courseID': courseID}
+      r = requests.get(self.server_url + 'event/get', data=json.dumps(params))
       return json.loads(r.text)
