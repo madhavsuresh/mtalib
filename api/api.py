@@ -135,8 +135,15 @@ class server_accessor:
 
   def get_courseID_from_assignmentID(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.get(self.server_url + 'assignment/courseID_from_assignmentID', data=json.dumps(params))
+    r = requests.get(self.server_url + 'assignment/courseID_from_assignmentID',
+                     data=json.dumps(params))
     return json.loads(r.text)
+  def get_all_assignments_from_course(self, courseID):
+      params = {'courseID': courseID}
+      r = requests.get(self.server_url +
+                       'assignment/get_all_from_course',
+                       data=json.dumps(params))
+      return json.loads(r.text)
   ################################## Rubrics ##########################################
 
   def create_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}]):
@@ -359,3 +366,10 @@ class server_accessor:
     seconds_to_add = timedelta(days=day_offset).total_seconds()
     for key in time_fields:
       dict_to_update[key] += seconds_to_add
+
+
+  ################################ EVENTS ################################
+  def events_get_all(self, courseID):
+      params = {'courseID': courseID}
+      r = requests.get(self.server_url + 'events/get_all', data=json.dumps(params))
+      return json.loads(r.text)
