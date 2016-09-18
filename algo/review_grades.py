@@ -1,5 +1,5 @@
 from __future__ import division
-import peer_review_util
+from peer_review_util import *
 
 
 ### quadratic loss function

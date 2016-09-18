@@ -128,4 +128,15 @@ def peer_assignment_check(peers,assignments,excludes):
     return not any(duplicates(assignments[p] + excludes[p]) for p in peers)
 
 
+# generates random reviews for assignments 
+#    (assignments as returned from peer_assignments())
+#   qualities: {i => number of draws from distribituion}
+def random_reviews(assignments, qualities = {}):
+    # fill in qualities if empty.
+    # default quality is 1.
+    qs = {i:1 for i in assignments.keys()}
+    qs.update(qualities)
+    
+    return {i: {j: avg([random.random() for _ in range(qs[i])]) for j in js} for (i, js) in assignments.items()} 
+
 
