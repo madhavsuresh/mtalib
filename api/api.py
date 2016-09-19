@@ -380,4 +380,17 @@ class server_accessor:
       else:
           params = {'courseID': courseID}
       r = requests.get(self.server_url + 'event/get', data=json.dumps(params))
+      json_response = ''
+      try:
+          json_response = json.loads(r.text)
+      except Exception:
+          print r.text
+          raise
+      return json_response
+
+  def event_create(self, assignmentID, summary, details, success,job):
+      params = {'assignmentID': assignmentID,'summary': summary, 'details':
+                details, 'success': success, 'job': job}
+      r = requests.post(self.server_url + 'event/create',
+                        data=json.dumps(params))
       return json.loads(r.text)

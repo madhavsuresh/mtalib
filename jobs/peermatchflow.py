@@ -1,10 +1,10 @@
 from api.api import *
 from algo.peer_assignment import *
-
+import config
 c = server_accessor('http://enron.cs.northwestern.edu/~madhav/peermatch/mta/api/')
+c = config.api_server
 
 def execute_peermatch(assignmentID, cover=[], load=3):
-  c = server_accessor('http://enron.cs.northwestern.edu/~madhav/peermatch/mta/api/')
   peer_and_submission_ids = c.peermatch_get_peer_and_submission_ids(assignmentID)['peerSubmissionPairs']
   exclude = dict((x,[y,]) for x,y in [tuple(d.values()) for d in peer_and_submission_ids])
   submissions = [d['submissionID'] for d in peer_and_submission_ids]
@@ -42,7 +42,6 @@ def insert_ta_matches(assignmentID, cover):
   matching_api_fmt = convert_alg_to_api_matching(matching)
   c.peermatch_create_bulk(assignmentID, matching_api_fmt)
 
-  
-cover = insert_peermatch(1)
-insert_ta_matches(1,cover)
-
+def execute(assignmentID):
+    cover = insert_peermatch(assignmentID)
+    insert_ta_matches(assignmentID,cover)
