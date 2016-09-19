@@ -139,6 +139,7 @@ class server_accessor:
                      data=json.dumps(params))
     return json.loads(r.text)
 
+
   def get_assignment_event(self, courseID, assignmentID=None):
       if assignmentID:
           params = {'courseID': courseID, 'assignmentID': assignmentID}
@@ -149,30 +150,58 @@ class server_accessor:
                        'assignment/get_all_from_course',
                        data=json.dumps(params))
       return json.loads(r.text)
+
   ################################## Rubrics ##########################################
 
-  def create_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}]):
+def create_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}],weight=1.0):
     """Creates rubric for given courseID and assignmentID with given name"""
+
+    # scores can be normalized, and then reweighted by weight.
+    # need to store reweighted scored in MTA.
+    for o in options:
+      o['score'] *= weight
+
     if courseID == None:
-        courseID = self.courseID
+      courseID = self.courseID
     rubric_params = locals()
     del rubric_params['self']
+    del rubric_params['weight']
     return requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
 
-  def update_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}]):
+def update_rubric(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}],weight=1.0):
     """Creates rubric for given courseID and assignmentID with given name"""
+
+    # scores can be normalized, and then reweighted by weight.
+    # need to store reweighted scored in MTA.
+    for o in options:
+      o['score'] *= weight
+
+
     if courseID == None:
-        courseID = self.courseID
+      courseID = self.courseID
+
     rubric_params = locals()
+
     del rubric_params['self']
+    del rubric_params['weight']
 
     return requests.post(self.server_url + 'rubric/update', data = json.dumps(rubric_params))
 
-  def get_rubric(self, assignmentID):
+def get_rubric(self, assignmentID):
     '''Gets all rubrics right now based on AssignmentID '''
     assignment_params = locals()
     del assignment_params['self']
-    return requests.get(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
+    req = requests.get(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
+
+    rubric = req.json()
+
+    # normalize weights
+    weight = max([o['score'] for o in rubric['options']])
+    for o in rubric['options']:
+      o['score'] /= weight
+    rubric['weight'] = weight
+    
+    return rubric
 
   ############################### GRADES ##############################
 
@@ -220,14 +249,9 @@ class server_accessor:
     params = {'assignmentID': assignmentID}
     r = requests.get(self.server_url + 'peermatch/get_peer_and_submission_ids', data=json.dumps(params))
     return json.loads(r.text)
-  ############################### TESTING ##############################
 
-  def make_submissions(self, assignmentID, courseID = None):
-    if courseID == None:
-        courseID = self.courseID
-    make_submissions_params = locals()
-    del make_submissions_params['self']
-    return requests.post(self.server_url + 'makesubmissions', data = json.dumps(make_submissions_params))
+
+  ############################### PEER REVIEWS ##############################
 
   def create_peerreviews(self, peerreviews_params):
     return requests.post(self.server_url + 'peerreviews/create', data = json.dumps(peerreviews_params))
@@ -237,28 +261,40 @@ class server_accessor:
         courseID = self.courseID
     peer_review_scores_params = locals()
     del peer_review_scores_params['self']
-    return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params))
+    return requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params)).json()
 
   def get_peerreview_grades(self, assignmentID,courseID = None):
     if courseID == None:
         courseID = self.courseID
-    pr = self.get_peerreviews(assignmentID, courseID).json()
-    rubrics = self.get_rubric(assignmentID).json()
-    for key, value in pr.iteritems():
-        for x in range(len(value)):
-            answers = value[x]['answers']
-            if answers == []:
-                continue
-            for answers_key, answers_values in answers.iteritems():
-                for y in range(len(rubrics)):
-                    if rubrics[y]['questionID']['id'] == answers_key: # check for unicode if this works
-                        score_index = int(answers_values['int'])
-                        options = rubrics[y]['options']
-                        answers_values['score'] = float(options[score_index]['score'])
-                        # print pr[key][x][answers_key]
+    pr = self.get_peerreviews(assignmentID, courseID)
+    rubrics = self.get_rubric(assignmentID)
 
+    # map rubric item to options
+    rubdict = {r['questionID']['id']:r['options'] for r in rubrics}
+   
+    # add score to each rubric item and answer
+    for q, a in [qanda for items in pr.values() 
+                       for item in items 
+                       for qanda in item['answers'].items()]:
+        a['score'] = float(rubdict[q][int(a['int'])])
+   
     return pr
 
+
+
+  ############################### TESTING ##############################
+
+  def make_submissions(self, assignmentID, courseID = None):
+    if courseID == None:
+        courseID = self.courseID
+    make_submissions_params = locals()
+    del make_submissions_params['self']
+    return requests.post(self.server_url + 'makesubmissions', data = json.dumps(make_submissions_params))
+
+
+##
+## MOVE THIS TO JOBS.  --Jason
+##
   def setup_for_vancouver(self, assignmentID, courseID = None):
     if courseID == None:
         courseID = self.courseID
@@ -292,64 +328,70 @@ class server_accessor:
 
     return reviews, truth
 
-  def average_score(self, answer_dict):
-    count = 0
-    score = 0
-    for key, value in answer_dict.iteritems():
-        count += 1
-        score += value['score']
-    return score/count
+### This is not used.  --Jason
+#
+#  def average_score(self, answer_dict):
+#    count = 0
+#    score = 0
+#    for key, value in answer_dict.iteritems():
+#        count += 1
+#        score += value['score']
+#    return score/count
 
+##
+## MOVE THIS TO jobs?
+##
   def grading_alg(self, assignmentID, courseID = None):
       if courseID == None:
           courseID = self.courseID
-      max_score_dict = {} # dictionary for easy access to max scores for each rubric question
-      ta_ids = self.get_tas_from_course(courseID)
-      rubrics = self.get_rubric(assignmentID).json()
-      for question in rubrics:
-          max_score_dict[question['questionID']['id']]= self.gen_max_rubric_score(question)
-          #max_scores are an addedd field now in a review
 
-      grades = {} # to be returned
+      ta_ids = self.get_tas_from_course(courseID)
+      rubrics = self.get_rubric(assignmentID)
 
       reviews,TA_truth = self.setup_for_vancouver(assignmentID, courseID)
-      peer_reviews = self.get_peerreviews(assignmentID, courseID).json()
-      for key, value in reviews.iteritems(): # peer => dict of submissions => score
-          for submission, score in value.iteritems(): #loop through all given scores
+
+      grades = {i:[] for i in reviews.keys()} # to be returned
+
+      for i, jtoscore  in reviews.iteritems(): # peer => dict of submissions => score
+          for j, score in jtoscore.iteritems(): #loop through all given scores
               #submission is the string index for the dict, submission_id is the q
-              if submission in TA_truth.keys():
-                  question_id = self.get_submission_question_id(submission)
-                  normalized_peer_score = score / max_score_dict[question_id]
-                  normalized_TA_score = TA_truth[submission]/max_score_dict[question_id]
-                  difference = 1 - abs(normalized_TA_score - normalized_peer_score)
+              if j in TA_truth.keys():
+
+                  difference = 1.0 - abs(TA_truth - score)
                   #TODO think about how the subtraction introduces float precission issues
-                  reviews[key][submission] = difference# normalizing by dividing by max score
-                  if key in grades: # need to check if we've seen this user id before
-                      grades[key].append(difference)
-                  else:
-                      grades[key] = [difference] # storing individual grades in a list to average at the end
-      for peer,normalized_grades in grades.iteritems(): # to average all peer normalized grades
-        grades[peer] = sum(normalized_grades)/len(normalized_grades)
+                 
+                  grades[i].append(difference)
+
+      for peer,peer_grades in grades.iteritems(): # to average all peer normalized grades
+        grades[peer] = avg(grades)
 
       return grades
 
-  def get_submission_question_id(self, submission_string):
-      '''Hacky specific function. setup for vancover makes a string 'submission 123:5 The number after the colon is the question id this just extracts that '''
-      for x in range(len(submission_string)):
-          if submission_string[x] == ':':
-              return submission_string[x+1:]
+### This is not used.  --Jason
+#
+#  def get_submission_question_id(self, submission_string):
+#      '''Hacky specific function. setup for vancover makes a string 'submission 123:5 The number after the colon is the question id this just extracts that '''
+#      for x in range(len(submission_string)):
+#          if submission_string[x] == ':':
+#              return submission_string[x+1:]
 
-  def gen_max_rubric_score(self, questiondict):
-    options = questiondict['options']
-    scores = [float(x['score']) for x in options]
-    max_score = max(scores)
-    return max_score
+### This is not used.  --Jason
+#
+#  def gen_max_rubric_score(self, questiondict):
+#    options = questiondict['options']
+#    scores = [float(x['score']) for x in options]
+#    max_score = max(scores)
+#    return max_score
 
   def get_course_id_from_name(self, course_name):
     return requests.get(self.server_url + 'getcourseidfromname', data = json.dumps({'courseName' : course_name}))
 
 
   ################################ HELPERS ################################
+
+# return the average of the numbers in the list.
+  def avg(lst):
+    return sum(lst)/len(lst) if len(lst) > 0 else 0.0
 
   def local_to_UTC(self, temp_datetime):
       return self.timezone.normalize(self.timezone.localize(temp_datetime)).astimezone(pytz.utc)
@@ -394,3 +436,4 @@ class server_accessor:
       r = requests.post(self.server_url + 'event/create',
                         data=json.dumps(params))
       return json.loads(r.text)
+
