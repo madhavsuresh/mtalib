@@ -1,6 +1,6 @@
 from __future__ import division
 from peer_review_util import *
-import logger
+import logging
 
 logger = logging.getLogger('mtalib.algos.review_grades')
 
