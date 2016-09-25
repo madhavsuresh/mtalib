@@ -2,6 +2,9 @@ import requests, json, string, copy, pprint, pytz, calendar, time
 from datetime import datetime, timedelta
 from pytz import timezone
 
+NO_ANSWER_INT = -1
+NO_ANSWER_SCORE = -1.0
+
 class server_accessor:
   """Class for accessing the Mechanical TA API"""
   server_url = ''
@@ -183,7 +186,7 @@ class server_accessor:
     del new_params['kwargs']
 
     # get old parameters
-    rubrics = get_rubric(self,assignmentID)
+    rubrics = self.get_rubric(assignmentID)
     params = rubrics[questionID]
 
     params.update(new_params)
@@ -294,8 +297,8 @@ class server_accessor:
     return requests.post(self.server_url + 'peerreviews/create', data = json.dumps(peerreviews_params))
 
 
-  NO_ANSWER_INT = -1
-  NO_ANSWER_SCORE = -1.0
+ 
+
  
 
 # GET_PEERREVIEWS
@@ -322,9 +325,15 @@ class server_accessor:
         if a['int']:
             a['int'] = int(a['int'])
     
+    # make questionID an int.
+    for item in [item for items in pr.values() for item in items]:
+        item['answers'] = {int(q):a for q,a in item['answers'].items()}
+    
     return pr
         
-
+        
+ 
+ 
 # GET_PEERREVIEW_SCORES
 #    - returns {submission -> [reviews]}
 #    - scores are added from rubric
@@ -333,28 +342,28 @@ class server_accessor:
   def get_peerreview_scores(self, assignmentID,courseID = None):
     if courseID == None:
         courseID = self.courseID
-    pr = get_peerreviews(self,assignmentID, courseID)
-    rubrics = get_rubric(self,assignmentID)
+    
+    pr = self.get_peerreviews(assignmentID, courseID)
+    rubric = self.get_rubric(assignmentID)
 
     
     
-    # add score to each rubric item and answer
+    # add score to each question's answer
     for answers in [review['answers'] for reviews in pr.values() 
                        for review in reviews]:
         
         # add scores.
         for q,a in answers.items():
             # if rubric has options, then add score.
-            if 'options' in rubrics[q]: 
-                a['score'] = rubrics[q]['options'][a['int']]['score']
+            if 'options' in rubric[q]: 
+                a['score'] = rubric[q]['options'][a['int']]['score']
        
         # add q for unaswered questions.
-        for q in rubrics.keys():
+        for q in rubric.keys():
             if q not in answers:
                 answers[q] = {u'int': NO_ANSWER_INT, 'score': NO_ANSWER_SCORE, u'text': None}
     
     return pr
-
 
 
   ############################### TESTING ##############################
