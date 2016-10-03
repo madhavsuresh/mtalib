@@ -3,8 +3,6 @@ from datetime import datetime, timedelta
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
 #import config
-username = ''
-password = ''
 
 
 
@@ -20,7 +18,7 @@ class server_accessor:
   date_fmt = ''
   courseID = None
 
-  def __init__(self, p_server_url, course_id = 1, local_timezone = 'US/Central', date_fmt = '%m/%d/%Y %H:%M:%S'):
+  def __init__(self, p_server_url, course_id = 1, local_timezone = 'US/Central', date_fmt = '%m/%d/%Y %H:%M:%S', username='', password=''):
     """Creates a server_accessor instance. Required param: p_server_url - MechTA instance API url. Optional params: local_timezone - pytz formatted timezone (default value: US/Central), date_fmt - string format for passed in dates (default value: '%m/%d/%Y %H:%M:%S')"""
     if p_server_url[-1:] != '/':
       p_server_url += '/'
@@ -28,10 +26,22 @@ class server_accessor:
     self.timezone = timezone(local_timezone)
     self.date_fmt = date_fmt
     self.courseID = course_id
+    self.username = username
+    self.password = password
 
   def __str__(self):
     """Prints the url this instance is accessing"""
     return self.server_url
+
+  def server_get(self, endpoint, params):
+      r = requests.get(self.server_url + endpoint, data=json.dumps(params), 
+              auth=(self.username, self.password))
+      return r
+
+  def server_post(self, endpoint, params):
+      r = requests.post(self.server_url + endpoint, data=json.dumps(params), 
+              auth=(self.username, self.password))
+      return r
 
   ############################ COURSE ###########################
 
@@ -101,7 +111,7 @@ class server_accessor:
 
   def get_tas_from_course(self, courseID):
     params = {'courseID': courseID}
-    r = requests.get(self.server_url + 'user/get_tas_from_courseid', data=json.dumps(params), auth=(username, password))
+    r = self.server_get('user/get_tas_from_courseid', params)
     return r.json()
 
   ################################## Assignments ######################################
@@ -168,8 +178,7 @@ class server_accessor:
 
   def get_courseID_from_assignmentID(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.get(self.server_url + 'assignment/courseID_from_assignmentID',
-                     data=json.dumps(params),auth=(username, password))
+    r = self.server_get('assignment/courseID_from_assignmentID', params)
     print r.text
     return json.loads(r.text)
 
@@ -309,7 +318,7 @@ class server_accessor:
 
   def peermatch_create_bulk(self, assignmentID, peerMatchesList):
     params = {'assignmentID': assignmentID, 'peerMatches': peerMatchesList}
-    r = requests.post(self.server_url + 'peermatch/create_bulk', data=json.dumps(params), auth=(username, password))
+    r = self.server_post('peermatch/create_bulk', params)
     if r.text:
       print r.text
       return json.loads(r.text)
@@ -332,7 +341,7 @@ class server_accessor:
 
   def peermatch_get_peer_and_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.get(self.server_url + 'peermatch/get_peer_and_submission_ids', data=json.dumps(params), auth=(username, password))
+    r = self.server_get('peermatch/get_peer_and_submission_ids', params)
     print r.text
     return json.loads(r.text)
 
