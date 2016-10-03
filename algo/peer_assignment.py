@@ -51,7 +51,7 @@ def peer_assignment_covered(peers,submissions,k,cover=[],excludes={},num_tries=1
     # the remaining submissions
     residual_submissions = set(submissions).difference(set(cover))
 
-    residual_assignments = peer_assignment(peers,submissions,1,excludes,num_tries)
+    residual_assignments = peer_assignment(peers,submissions,k-1,excludes,num_tries)
     if not residual_assignments:
         return {}
     
@@ -140,5 +140,25 @@ def random_reviews(assignments, qualities = {}):
     qs.update(qualities)
     
     return {i: {j: avg([random.random() for _ in range(qs[i])]) for j in js} for (i, js) in assignments.items()} 
+
+#there is a bug with the peermatch where if the number of submissions per peer is linear in the number of submissions, things go awry
+#thisi s a temporary fix
+def random_ta_assignment(ta_list, submissions_to_cover):
+    random.shuffle(ta_list)
+    random.shuffle(submissions_to_cover)
+    base = int(math.floor(len(submissions_to_cover)/len(ta_list)))
+    residue = int(len(submissions_to_cover) - base*len(ta_list))
+    assignment = {}
+    for i in range(residue):
+        ta = ta_list.pop()
+        assignment[ta] = []
+        for j in range(base+1):
+            assignment[ta].append(submissions_to_cover.pop()) 
+    for ta in ta_list:
+        assignment[ta] = []
+        for j in range(base):
+            assignment[ta].append(submissions_to_cover.pop()) 
+    return assignment
+
 
 
