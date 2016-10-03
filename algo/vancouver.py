@@ -4,6 +4,9 @@ from peer_review_util import *
 MIN_VARIANCE = 0.001    # don't let 1/variance blow up if a peer is very accurate.
 DEFAULT_VARIANCE = 1.0  # this does not matter as long as it is the same.
 
+def safe_divide(num,denom,infinity):
+    return min(num / denom,infinity) if denom != 0 else infinity 
+
 
 
 # assign students in groups to k submissions.
@@ -41,10 +44,11 @@ def simple_vancouver(reviews, truth, t):
         jmean.update(truth)
 
         # update qualities: ivar[i] = (sum_j jvar[j]) / (sum_j jvar[j](reviews[i][j]-jmean[j]))
-        ivar = {i: min(1 / MIN_VARIANCE,
-                       sum([jvar[j] for j in iassign[i]]) / \
-                       sum([jvar[j] * (reviews[i][j] - jmean[j]) ** 2 for j in iassign[i]])) \
-                for i in peers}
+        ivar = {i: safe_divide(
+                       sum([jvar[j] for j in iassign[i]]),
+                       sum([jvar[j] * (reviews[i][j] - jmean[j]) ** 2 for j in iassign[i]]),
+                       1/MIN_VARIANCE)
+                   for i in peers}
 
     scores = {j: (jmean[j], 1.0 / jvar[j]) for j in submissions}
     quality = {i: 1.0 / ivar[i] for i in peers}
@@ -99,9 +103,10 @@ def vancouver(reviews, truth, t):
                   for i in peers}
 
         # update qualities: ivar[i] = (sum_j jvar[j]) / (sum_j jvar[j](reviews[i][j]-jmean[j]))
-        ivars = {i: {j: min(1 / MIN_VARIANCE,
-                            sum([jvars[i][jj] for jj in iassign[i] if jj != j]) / \
-                            sum([jvars[i][jj] * (reviews[i][jj] - jmeans[i][jj]) ** 2 for jj in iassign[i] if jj != j])) \
+        ivars = {i: {j: safe_divide(
+                            sum([jvars[i][jj] for jj in iassign[i] if jj != j]),
+                            sum([jvars[i][jj] * (reviews[i][jj] - jmeans[i][jj]) ** 2 for jj in iassign[i] if jj != j]),
+                            1 / MIN_VARIANCE)
                      for j in iassign[i]}
                  for i in peers}
 
@@ -116,9 +121,10 @@ def vancouver(reviews, truth, t):
     jmean.update(truth)
 
     # update qualities: ivar[i] = (sum_j jvar[j]) / (sum_j jvar[j](reviews[i][j]-jmean[j]))
-    ivar = {i: min(1 / MIN_VARIANCE,
-                   sum([jvars[i][j] for j in iassign[i]]) / \
-                   sum([jvars[i][j] * (reviews[i][j] - jmeans[i][j]) ** 2 for j in iassign[i]])) \
+    ivar = {i: safe_divide(
+                   sum([jvars[i][j] for j in iassign[i]]),
+                   sum([jvars[i][j] * (reviews[i][j] - jmeans[i][j]) ** 2 for j in iassign[i]]),
+                   1 / MIN_VARIANCE)
             for i in peers}
 
     scores = {j: (jmean[j], 1.0 / jvar[j]) for j in submissions}

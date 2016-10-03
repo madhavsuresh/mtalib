@@ -2,8 +2,12 @@ import requests, json, string, copy, pprint, pytz, calendar, time
 from datetime import datetime, timedelta
 from pytz import timezone
 
-NO_ANSWER_INT = -1
-NO_ANSWER_SCORE = -1.0
+
+
+
+
+
+
 
 class server_accessor:
   """Class for accessing the Mechanical TA API"""
@@ -105,7 +109,29 @@ class server_accessor:
     assignment_params = locals()
     del assignment_params['self']
 
-    defaults = {'password' : 'null', 'passwordMessage' : 'null', 'visibleToStudents' : 1, 'assignmentType' : 'peerreview', 'dateFormat' : 'MMMM Do YYYY, HH:mm', 'calibrationPoolAssignmentIds' : [], 'extraCalibrations' : 0, 'calibrationStartDate' : 0, 'calibrationStopDate' : 0, 'showMarksForReviewsReceived' : 1, 'showOtherReviewsByStudents' : 0, 'showOtherReviewsByInstructors' : 0, 'showMarksForOtherReviews' : 0, 'showMarksForReviewedSubmissions' : 0, 'showPoolStatus' : 0, 'calibrationMinCount' : 0, 'calibrationMaxScore' : 0, 'calibrationThresholdMSE' : 0, 'calibrationThresholdScore' : 0, 'allowRequestOfReviews' : 0, 'submissionSettings' : {'topics' : [], 'autoAssignEssayTopic' : 1, 'essayWordLimit' : 10000}}
+    defaults = {'password' : 'null', 
+                'passwordMessage' : 'null', 
+                'visibleToStudents' : 1, 
+                'assignmentType' : 'peerreview', 
+                'dateFormat' : 'MMMM Do YYYY, HH:mm', 
+                'calibrationPoolAssignmentIds' : [], 
+                'extraCalibrations' : 0, 
+                'calibrationStartDate' : 0, 
+                'calibrationStopDate' : 0, 
+                'showMarksForReviewsReceived' : 1, 
+                'showOtherReviewsByStudents' : 0, 
+                'showOtherReviewsByInstructors' : 0, 
+                'showMarksForOtherReviews' : 0, 
+                'showMarksForReviewedSubmissions' : 0, 
+                'showPoolStatus' : 0, 
+                'calibrationMinCount' : 0, 
+                'calibrationMaxScore' : 0, 
+                'calibrationThresholdMSE' : 0, 
+                'calibrationThresholdScore' : 0, 
+                'allowRequestOfReviews' : 0, 
+                'submissionSettings' 
+                   : {'topics' : [], 'autoAssignEssayTopic' : 1, 'essayWordLimit' : 10000}
+                }
 
     defaults.update(assignment_params)
     self.convert_assignment_datetimes_to_unix_time(defaults)
@@ -193,10 +219,12 @@ class server_accessor:
     
     # scores can be normalized, and then reweighted by weight.
     # need to store reweighted scored in MTA.
-    for o in params['options']:
+    if 'options' in params:
+      for o in params['options']:
         o['score'] *= params['weight']   
-    del params['weight']
     
+    if 'weight' in params:
+      del params['weight']
 
     return requests.post(self.server_url + 'rubric/update', data = json.dumps(params))
 
@@ -233,13 +261,21 @@ class server_accessor:
             weight = max([o['score'] for o in q['options']])
             for o in q['options']:
                 o['score'] /= weight
+
             q['weight'] = weight
     
     rubric = {q['questionID']['id']:q for q in questions}
     
     return rubric
 
+  def get_rubric_weights(self,assignmentID):
+    '''Gets rubric weights into dictionary {q:weight,...}'''
+    rubric = self.get_rubric(assignmentID)
 
+    # question weights: {q:weight,...}
+    weights = {q:props['weight'] for q,props in rubric.items() if 'weight' in props}
+ 
+    return weights
 
 
 
@@ -337,16 +373,16 @@ class server_accessor:
 # GET_PEERREVIEW_SCORES
 #    - returns {submission -> [reviews]}
 #    - scores are added from rubric
-#    - reviews with "no answer" are market with NO_ANSWER.
-#
-  def get_peerreview_scores(self, assignmentID,courseID = None):
+#    - reviews with "no answer" are marked with NonScore.NO_ANSWER.
+#    - reviews with option label "skip" are marked with NonScore.SKIP. 
+  def get_peerreview_scores(self, assignmentID,courseID = None, rewrites = {}):
     if courseID == None:
         courseID = self.courseID
     
     pr = self.get_peerreviews(assignmentID, courseID)
     rubric = self.get_rubric(assignmentID)
 
-    
+
     
     # add score to each question's answer
     for answers in [review['answers'] for reviews in pr.values() 
@@ -355,14 +391,21 @@ class server_accessor:
         # add scores.
         for q,a in answers.items():
             # if rubric has options, then add score.
-            if 'options' in rubric[q]: 
-                a['score'] = rubric[q]['options'][a['int']]['score']
+            if 'options' in rubric[q]:
+              label = rubric[q]['options'][a['int']]['label'] 
+              if label in rewrites:
+                  a['score'] = rewrites[label]
+              else:
+                  a['score'] = rubric[q]['options'][a['int']]['score']
        
-        # add q for unaswered questions.
-        for q in rubric.keys():
+        # add q for unaswered questions if None is in rewrites
+        if None in rewrites:
+          for q in rubric.keys():
             if q not in answers:
-                answers[q] = {u'int': NO_ANSWER_INT, 'score': NO_ANSWER_SCORE, u'text': None}
-    
+              answers[q] = {'int': None, 'text': None}
+              if 'options' in rubric[q]:
+                answers[q]['score'] = rewrites[None]
+
     return pr
 
 

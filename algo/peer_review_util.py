@@ -36,9 +36,17 @@ def tuples_to_kkv(tuples):
         
     return kkv
 
+def ensure_tuples(kvv_or_tuples):
+    return kvv_to_tuples(kvv_or_tuples) if isinstance(kvv_or_tuples,dict) else kvv_or_tuples
+
+def ensure_kvv(kvv_or_tuples):
+    return kvv_or_tuples if isinstance(kvv_or_tuples,dict) else tuples_to_kvv(kvv_or_tuples)
+
+
 # input: {i => j => v,...}
 # output: {j => i => v,...}
 def kkv_invert(kkv):
     tuples = kkv_to_tuples(kkv)
     
     return tuples_to_kkv([(j,i,v) for (i,j,v) in tuples])   
+
