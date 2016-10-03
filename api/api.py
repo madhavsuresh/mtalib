@@ -1,6 +1,10 @@
 import requests, json, string, copy, pprint, pytz, calendar, time
 from datetime import datetime, timedelta
 from pytz import timezone
+from requests.auth import HTTPBasicAuth
+#import config
+username = ''
+password = ''
 
 
 
@@ -97,7 +101,7 @@ class server_accessor:
 
   def get_tas_from_course(self, courseID):
     params = {'courseID': courseID}
-    r = requests.get(self.server_url + 'user/get_tas_from_courseid', data=json.dumps(params))
+    r = requests.get(self.server_url + 'user/get_tas_from_courseid', data=json.dumps(params), auth=(username, password))
     return r.json()
 
   ################################## Assignments ######################################
@@ -165,7 +169,8 @@ class server_accessor:
   def get_courseID_from_assignmentID(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = requests.get(self.server_url + 'assignment/courseID_from_assignmentID',
-                     data=json.dumps(params))
+                     data=json.dumps(params),auth=(username, password))
+    print r.text
     return json.loads(r.text)
 
 
@@ -304,13 +309,17 @@ class server_accessor:
 
   def peermatch_create_bulk(self, assignmentID, peerMatchesList):
     params = {'assignmentID': assignmentID, 'peerMatches': peerMatchesList}
-    r = requests.post(self.server_url + 'peermatch/create_bulk', data=json.dumps(params))
+    r = requests.post(self.server_url + 'peermatch/create_bulk', data=json.dumps(params), auth=(username, password))
     if r.text:
+      print r.text
       return json.loads(r.text)
   def peermatch_delete_all(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = requests.post(self.server_url + 'peermatch/delete_all', data=json.dumps(params))
-    return json.loads(r.text)
+    if r.text:
+        return json.loads(r.text)
+    else:
+        return r
   def peermatch_get_peer_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = requests.post(self.server_url + 'peermatch/get_peer_ids', data=json.dumps(params))
@@ -323,7 +332,8 @@ class server_accessor:
 
   def peermatch_get_peer_and_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.get(self.server_url + 'peermatch/get_peer_and_submission_ids', data=json.dumps(params))
+    r = requests.get(self.server_url + 'peermatch/get_peer_and_submission_ids', data=json.dumps(params), auth=(username, password))
+    print r.text
     return json.loads(r.text)
 
 
