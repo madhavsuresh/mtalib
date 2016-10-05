@@ -345,6 +345,14 @@ class server_accessor:
     print r.text
     return json.loads(r.text)
 
+  def set_review_score(self, matchID, score):
+      params = {'matchID': matchID, 'score': score}
+      r = self.server_post('peermatch/insert_review_mark', params)
+
+  def set_review_scores_bulk(self, list_of_scores):
+      params = {'reviewMarks': list_of_scores}
+      r = self.server_post('peermatch/insert_review_marks_bulk', params)
+
 
   ############################### PEER REVIEWS ##############################
 
