@@ -179,8 +179,8 @@ class server_accessor:
   def get_courseID_from_assignmentID(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = self.server_get('assignment/courseID_from_assignmentID', params)
-    print r.text
-    return json.loads(r.text)
+
+    return r.json()
 
 
   def get_assignment_event(self, courseID, assignmentID=None):
@@ -209,7 +209,7 @@ class server_accessor:
     rubric_params = locals()
     del rubric_params['self']
     del rubric_params['weight']
-    return requests.post(self.server_url + 'rubric/create', data = json.dumps(rubric_params))
+    return self.server_post('rubric/create', rubric_params)
 
 ## UPDATE_RUBRIC
 ##   - allows partial update.
@@ -240,7 +240,7 @@ class server_accessor:
     if 'weight' in params:
       del params['weight']
 
-    return requests.post(self.server_url + 'rubric/update', data = json.dumps(params))
+    return self.server_post('rubric/update', params)
 
 ## GET_RUBRICS
 ##    - returns *dictionary* of rubrics: {questionID:rubric,...}
@@ -252,7 +252,7 @@ class server_accessor:
     assignment_params = locals()
     del assignment_params['self']
     
-    req = requests.get(self.server_url + 'rubric/get', data = json.dumps(assignment_params))
+    req = self.server_get('rubric/get', assignment_params)
     questions = req.json()
     
     # make questionIDs ints
@@ -295,13 +295,14 @@ class server_accessor:
 
   ############################### GRADES ##############################
 
-  def set_grades(assignmentID, grades, courseID = None):
+  def set_grades(self,assignmentID, grades, courseID = None):
     """Sets grades for a given assignmentID under the given course using the passed in list of (submissionID, grades) tuples"""
     if courseID == None:
         courseID = self.courseID
     grades_params = locals()
     del grades_params['self']
-    r = requests.post(server_url + 'grades/create', data = json.dumps(grades_params))
+    r = self.server_post('grades/create', grades_params)
+    return r
 
 ################################ PEERMATCH ################################
   def peermatch_create(self, assignmentID, submissionID, reviewerID):
@@ -371,10 +372,10 @@ class server_accessor:
   def get_peerreviews(self, assignmentID, courseID = None):
     if courseID == None:
         courseID = self.courseID
-    peer_review_scores_params = locals()
-    del peer_review_scores_params['self']
+    peerreview_params = locals()
+    del peerreview_params['self']
     
-    pr = requests.get(self.server_url + 'peerreviewscores/get', data = json.dumps(peer_review_scores_params)).json()
+    pr = self.server_get('peerreviewscores/get', peerreview_params).json()
     
     # replace [] with {} for 'answers' (seems to be a synonym in the JSON decoder)
     for item in [item for items in pr.values() for item in items]:

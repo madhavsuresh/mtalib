@@ -144,20 +144,20 @@ def random_reviews(assignments, qualities = {}):
 #there is a bug with the peermatch where if the number of submissions per peer is linear in the number of submissions, things go awry
 #thisi s a temporary fix
 def random_ta_assignment(ta_list, submissions_to_cover):
+    n = len(ta_list)
+    m = len(submissions_to_cover)
+
     random.shuffle(ta_list)
-    random.shuffle(submissions_to_cover)
-    base = int(math.floor(len(submissions_to_cover)/len(ta_list)))
-    residue = int(len(submissions_to_cover) - base*len(ta_list))
-    assignment = {}
-    for i in range(residue):
-        ta = ta_list.pop()
-        assignment[ta] = []
-        for j in range(base+1):
-            assignment[ta].append(submissions_to_cover.pop()) 
-    for ta in ta_list:
-        assignment[ta] = []
-        for j in range(base):
-            assignment[ta].append(submissions_to_cover.pop()) 
+
+    extended_tas = (ta_list * (m // n + 1))
+
+    tuples = [(i,j) for i,j in zip(extended_tas,submissions_to_cover)]
+
+    assignment = {i:[] for i in ta_list}
+
+    for i,j in tuples:
+        assignment[i].append(j)
+
     return assignment
 
 

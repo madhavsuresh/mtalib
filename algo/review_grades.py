@@ -18,10 +18,15 @@ class NO_ANSWER(NonScore):
 class SKIP(NonScore):
     pass
 
+NonScore.NO_ANSWER = NO_ANSWER()
+NonScore.SKIP = SKIP()
+
 
 ### quadratic loss function
 def quadratic_loss(truth, score):
-    return (truth-score)**2 
+    max_diff = max(1-truth,truth)
+
+    return ((truth-score)/max_diff)**2 
 
 ###
 ### calculate peer review grade
@@ -62,7 +67,7 @@ def review_grade(truth,score,avg_score,skip_loss,loss=quadratic_loss):
 #    skip_loss:   loss if the peer skipped the review, in [0,1].
 #    loss:        function for calculating loss (out of 1)
 # returns:
-#    grades:      {'peer name' => score}
+#    grades:      [(i,j,grade),...]
 def review_grades(reviews, truths, skip_loss,loss=quadratic_loss):
     reviews = ensure_tuples(reviews)
     # i: peers; j: submissions
@@ -80,11 +85,16 @@ def review_grades(reviews, truths, skip_loss,loss=quadratic_loss):
 
 
     # grade each review for which there is ground truth.
-    review_grades = [(i,j,review_grade(truths[j],score,avg_score,skip_loss)) for (i,j,score) in graded_reviews]
-    ijtog = tuples_to_kkv(review_grades)
+    grades = [(i,j,review_grade(truths[j],score,avg_score,skip_loss)) for (i,j,score) in graded_reviews]
+
+    return tuples_to_kkv(grades)
+
+def peer_grades(reviews, truths, skip_loss,loss=quadratic_loss):
+
+    grades = ensure_kkv(review_grades(reviews,truths,skip_loss,loss))
 
     # a peer's grade is the average of 
-    peer_grades = {i:avg(jtog.values()) for (i,jtog) in ijtog.items()}
+    peer_grades = {i:avg(jtog.values()) for (i,jtog) in grades.items()}
 
     # peers with no grade
     nogrades = [i for (i,jtog) in ijtog.items() if not jtog]

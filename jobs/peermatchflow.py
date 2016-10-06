@@ -1,6 +1,7 @@
-from api.api import *
-from algo.peer_assignment import *
-import config
+from ..api.api import *
+from ..algo.peer_assignment import *
+from .. import config
+
 c = config.api_server
 
 def execute_peermatch(assignmentID, cover=[], load=3):
@@ -36,7 +37,7 @@ def insert_ta_matches(assignmentID, cover):
   m = len(cover)
   matching = random_ta_assignment(taIDs, cover)
   matching_api_fmt = convert_alg_to_api_matching(matching)
-  c.peermatch_create_bulk(assignmentID, matching_api_fmt)
+  c.peermatch_create_bulk(Assignmentid, matching_api_fmt)
 
 def execute(assignmentID):
     cover = insert_peermatch(assignmentID)

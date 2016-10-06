@@ -24,6 +24,18 @@ def avg(lst):
 def kkv_to_tuples(kkv):
     return [(i,j,v) for (i,jtov) in kkv.items() for j,v in jtov.items()]
 
+def pairs_to_kvs(pairs):
+    tuples = [(i,j,None) for i,j in pairs]
+    
+    kkv = tuples_to_kkv(tuples)
+
+    kvs = {i : jtov.keys() for i,jtov in kkv.items()}
+    return kvs
+
+def kvs_to_pairs(kvs):
+    pairs = [(i,j) for i,vs in kvs.items() for j in vs]
+    return pairs
+
 # input: [(i,j,v),...]
 # output: {i => j => v,...}
 def tuples_to_kkv(tuples):
@@ -36,17 +48,21 @@ def tuples_to_kkv(tuples):
         
     return kkv
 
-def ensure_tuples(kvv_or_tuples):
-    return kvv_to_tuples(kvv_or_tuples) if isinstance(kvv_or_tuples,dict) else kvv_or_tuples
+def ensure_tuples(kkv_or_tuples):
+    return kkv_to_tuples(kkv_or_tuples) if isinstance(kkv_or_tuples,dict) else kkv_or_tuples
 
-def ensure_kvv(kvv_or_tuples):
-    return kvv_or_tuples if isinstance(kvv_or_tuples,dict) else tuples_to_kvv(kvv_or_tuples)
+def ensure_kkv(kkv_or_tuples):
+    return kkv_or_tuples if isinstance(kkv_or_tuples,dict) else tuples_to_kkv(kkv_or_tuples)
 
 
 # input: {i => j => v,...}
 # output: {j => i => v,...}
 def kkv_invert(kkv):
-    tuples = kkv_to_tuples(kkv)
+    tuples = ensure_tuples(kkv)
     
     return tuples_to_kkv([(j,i,v) for (i,j,v) in tuples])   
 
+# input: {i => j => v,...}
+# output: {(i,j) => v,...}
+def kkv_to_kv(kkv):
+    return {(i,j):v for i,jv in ensure_kkv(kkv).items() for j,v in jv.items()}
