@@ -344,8 +344,15 @@ class server_accessor:
   def peermatch_get_peer_and_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = self.server_get('peermatch/get_peer_and_submission_ids', params)
-    print r.text
     return json.loads(r.text)
+
+  def peermatch_delete_matches(self, match_id_list):
+      params = {'matchIDList': match_id_list}
+      r = self.server_post('peermatch/delete_match_bulk', params)
+      if r.text:
+        return json.loads(r.text)
+      else:
+        return r
 
   def set_review_grade(self, matchID, grade):
       params = {'matchID': matchID, 'grade': grade}
@@ -377,7 +384,10 @@ class server_accessor:
     peerreview_params = locals()
     del peerreview_params['self']
     
-    pr = self.server_get('peerreviewscores/get', peerreview_params).json()
+    pr = self.server_get('peerreviewscores/get', peerreview_params)
+    print 'hello'
+    exit(1)
+    print pr.text()
     
     # replace [] with {} for 'answers' (seems to be a synonym in the JSON decoder)
     for item in [item for items in pr.values() for item in items]:
