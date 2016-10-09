@@ -1,7 +1,8 @@
 from __future__ import division
 import math 
 import random
-from peer_review_util import *
+from util import *
+from copy import copy,deepcopy
 
 ####
 # GENERATE PEER ASSIGNMENT
@@ -41,17 +42,18 @@ def peer_assignment_covered(peers,submissions,k,cover=[],excludes={},num_tries=1
 
 
     # assign the agents to the cover. 
-    cover_assignments = peer_assignment(peers,submissions,1,excludes,num_tries)
+    cover_assignments = peer_assignment(peers,cover,1,excludes,num_tries)
     if not cover_assignments:
         return {}
+
 
     # add cover_assignment to excludes.
     excludes = {p: excludes[p] + cover_assignments[p] for p in peers}
 
     # the remaining submissions
-    residual_submissions = set(submissions).difference(set(cover))
+    residual_submissions = list(set(submissions).difference(set(cover)))
 
-    residual_assignments = peer_assignment(peers,submissions,k-1,excludes,num_tries)
+    residual_assignments = peer_assignment(peers,residual_submissions,k-1,excludes,num_tries)
     if not residual_assignments:
         return {}
     
@@ -77,11 +79,11 @@ def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
 
     excludes = {p : (excludes[p] if p in excludes else []) for p in peers}
 
-    # load = ceil(n * k / m)
-    # number of peers per submission (rounded up).
-    load = int(math.ceil((n * k) / m))
 
-    peer_reps = peers * k
+    # number of peers per submission (rounded down).
+    load = (n * k) // m
+
+    peer_reps = list(peers) * k
     submission_reps = submissions * load
 
     count = 0
@@ -89,25 +91,18 @@ def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
     for _ in range(num_tries):
 
         count += 1
-        
-        random.shuffle(submission_reps)
 
-        # trim the imbalance between peer_reps and submission_reps
-        # and make sure there no duplicates in residual.
-        while len(peer_reps) < len(submission_reps):
-        # check for duplicated in residual
-            residual = submission_reps[len(peer_reps):]
-            if (duplicates(residual)):
-                random.shuffle(submission_reps)
-            else:
-                submission_reps = submission_reps[:len(peer_reps)]
 
-        assignments = {p:[] for p in peers}
+        # add random extra submissions because submission_reps is rounded down.
+        excess = random.sample(submissions,n*k - m*load)
 
-        for (p,s) in zip(peer_reps,submission_reps):
-            assignments[p].append(s)
+        # shuffle.
+        random.shuffle(peer_reps)
 
-        # check for duplicates or excludesd assignemnts
+        # match.
+        assignments = pairs_to_kvs(zip(peer_reps,submission_reps + excess))
+
+        # check for duplicates or excluded assignemnts
         if any(duplicates(assignments[p] + excludes[p]) for p in peers):
             continue
 
@@ -124,11 +119,30 @@ def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
 # CHECK TO SEE IF A PEER ASSIGNMENT IS VALID
 #    - peers are not assigned to review the same submission multiple times.
 #    - peers are not assigned to review any submissions in their excludes list.
-def peer_assignment_check(peers,assignments,excludes):
+def peer_assignment_check(peers,assignments,cover,excludes):
     excludes = {p : (excludes[p] if p in excludes else []) for p in peers}
 
-    return not any(duplicates(assignments[p] + excludes[p]) for p in peers)
+    # fail if peers are assigned duplicate assignments, 
+    # or assignments required to be excluded.
+    if any(duplicates(assignments[p] + excludes[p]) for p in peers):
+        return False
 
+    # fail if any peers are uncovered.
+    if 0 in check_cover(assignment,cover):
+        return False
+
+    return True
+
+# returns {count:peers,...}
+#    - count: number of times covered
+#    - peers: list of peers covered that many times.
+# Note:
+#    - count = 0 implies that there are uncovered peers.
+def cover_check(assignment,cover):
+
+    covercounts = [(len([j for j in js if j in cover]),i) for i,js in assignment.items()]
+
+    return pairs_to_kvs(covercounts)
 
 # generates random reviews for assignments 
 #    (assignments as returned from peer_assignments())
@@ -141,24 +155,85 @@ def random_reviews(assignments, qualities = {}):
     
     return {i: {j: avg([random.random() for _ in range(qs[i])]) for j in js} for (i, js) in assignments.items()} 
 
-#there is a bug with the peermatch where if the number of submissions per peer is linear in the number of submissions, things go awry
-#thisi s a temporary fix
-def random_ta_assignment(ta_list, submissions_to_cover):
-    n = len(ta_list)
+# RANDOM_ASSIGNMENT: randomly match reviwers to submissions_to_cover.
+#   Input: 
+#     reviewers: [i,...]
+#     submissions_to_cover: [j,...]
+#   Output:
+#     assignment: {i: [j,...], ...} 
+# ALIAS: RANDOM_TA_ASSIGNMENTS (depricated)
+def random_assignment(reviewers, submissions_to_cover):
+    n = len(reviewers)
     m = len(submissions_to_cover)
 
-    random.shuffle(ta_list)
+    random.shuffle(reviewers)
 
-    extended_tas = (ta_list * (m // n + 1))
+    extended_reviewers = (reviewers * (m // n + 1))
 
-    tuples = [(i,j) for i,j in zip(extended_tas,submissions_to_cover)]
+    matches = [(i,j) for i,j in zip(extended_reviewers,submissions_to_cover)]
 
-    assignment = {i:[] for i in ta_list}
-
-    for i,j in tuples:
-        assignment[i].append(j)
-
-    return assignment
+    return pairs_to_kvs(matches)
+# ALIAS: RANDOM_TA_ASSIGNMENTS (depricated)
+random_ta_assignment = random_assignment
 
 
+#
+# finds and returns a cover, greedy by priority
+# Input:
+#   assignment: {i:js,...} 
+#      the assignment of peers to submissions.
+#   uncovered: [i,...] 
+#      list of peers that need to be covered.
+#   priority: (j,degree)->weight (higher is better)
+#      which submissions 
+def greedy_cover(assignment,uncovered,priority):
 
+    # get our own copy of uncovered because we modify it.
+    uncovered = copy(uncovered)
+
+    # remove peers that are not in uncovered.  
+    # (use deepcopy because this function modifies the assignment as it runs)
+    assignment = {i:copy(assignment[i]) for i in uncovered}
+    
+    # {j:reviewers,...]
+    reviewers = kvs_invert(assignment)
+
+    # define priority function 
+    def p(j):
+        return priority(j,len(reviewers[j]))
+
+    # while there are uncovered reviewers: 
+    #   1. FIND highest priority submission,
+    #   2. ADD it to cover.
+    #   3. REMOVE affected reviewers and ADJUST data structures.
+    cover = []
+    while uncovered:
+
+        # FIND and ADD the "highest priority" submission to the cover
+        j = max(reviewers.keys(),key=p)
+        cover.append(j)
+
+
+        # when we add j to the cover
+        #    (a) REMOVE reviewers i of j that are covered. 
+        #    (b) submissions jj those reviewers reviewed do not need to cover i
+        # ADJUST modify uncovered/reviewers/assignment to reflect this.
+        for i in reviewers[j]:
+            uncovered.remove(i)
+            
+            for jj in assignment[i]: 
+                if jj == j:
+                    continue
+                
+                # remove i from reviewers list for jj.
+                reviewers[jj].remove(i)
+                
+                # if jj has no more reviewers.
+                if not reviewers[jj]:
+                    del reviewers[jj]
+
+            del assignment[i]
+
+        del reviewers[j]
+
+    return cover

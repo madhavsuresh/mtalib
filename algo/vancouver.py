@@ -1,5 +1,5 @@
 from __future__ import division
-from peer_review_util import *
+from util import *
 
 MIN_VARIANCE = 0.001    # don't let 1/variance blow up if a peer is very accurate.
 DEFAULT_VARIANCE = 1.0  # this does not matter as long as it is the same.
@@ -69,6 +69,7 @@ def simple_vancouver(reviews, truth, t):
 #    - runs exactly t iterations.  does not stop if no improvements.
 def vancouver(reviews, truth, t):
     # i: peers; j: submissions
+    reviews = ensure_kkv(reviews)
 
     # strip scores 
     #   iassign[i] = submissions assigned to peer i
@@ -131,3 +132,17 @@ def vancouver(reviews, truth, t):
     quality = {i: 1.0 / ivar[i] for i in peers}
 
     return (scores, quality)
+
+
+def vancouver_preconditions(reviews,truths,t=0):
+    reviews = ensure_kkv(reviews)
+    # strip scores 
+    #   iassign[i] = submissions assigned to peer i
+    #   jassign[j] = peers assigned to review submission j
+    iassign = {i: review.keys() for (i, review) in reviews.items()}
+    jassign = invert_dictlist_dup(iassign)
+
+    kmin = min(len(subs) for (i, subs) in iassign.items())
+    lmin = min(len(peers) for (j, peers) in jassign.items())
+
+    return kmin >=2 and lmin >= 2
