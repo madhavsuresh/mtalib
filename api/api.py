@@ -346,7 +346,7 @@ class server_accessor:
     r = self.server_get('peermatch/get_peer_and_submission_ids', params)
     return json.loads(r.text)
 
-  def peermatch_delete_matches(self, match_id_list):
+  def peermatch_delete_match_bulk(self, match_id_list):
       params = {'matchIDList': match_id_list}
       r = self.server_post('peermatch/delete_match_bulk', params)
       if r.text:
