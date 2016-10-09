@@ -1,5 +1,5 @@
 from __future__ import division
-from peer_review_util import *
+from util import *
 from numbers import Number
 import logging
 
@@ -20,6 +20,13 @@ class SKIP(NonScore):
 
 NonScore.NO_ANSWER = NO_ANSWER()
 NonScore.SKIP = SKIP()
+
+
+### quadratic loss function
+def linear_loss(truth, score):
+    max_diff = max(1-truth,truth)
+
+    return (abs(truth-score)/max_diff) 
 
 
 ### quadratic loss function
@@ -85,7 +92,7 @@ def review_grades(reviews, truths, skip_loss,loss=quadratic_loss):
 
 
     # grade each review for which there is ground truth.
-    grades = [(i,j,review_grade(truths[j],score,avg_score,skip_loss)) for (i,j,score) in graded_reviews]
+    grades = [(i,j,review_grade(truths[j],score,avg_score,skip_loss,loss)) for (i,j,score) in graded_reviews]
 
     return tuples_to_kkv(grades)
 
