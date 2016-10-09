@@ -93,21 +93,22 @@ class server_accessor:
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
-  def delete_users(self, list_of_users, course_id = None):
+  def delete_users(self, list_of_users, courseID = None):
     """Accepts a courseID and a list of usernames and drops the given users under that course"""
-    if course_id == None:
-        course_id = self.courseID
-    delete_data = {'courseID' : course_id, 'users' : list_of_users}
+    if courseID == None:
+        courseID = self.courseID
+    delete_data = {'courseID' : courseID, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/delete', data = json.dumps(delete_data))
 
-  def get_users(self, course_id = None, list_of_users=""):
+  def get_users(self, courseID = None, users=""):
     """Accepts a courseID and an optional list of usernames. Without the list of usernames this returns a list of users by username in the given course, with the optional list this returns more detailed info on each given username"""
-    if course_id == None:
-        course_id = self.courseID
-    get_data = {'courseID' : course_id}
-    if list_of_users:
-      get_data['users'] = list_of_users
-    return requests.get(self.server_url + 'user/get', data = json.dumps(get_data))
+    if courseID == None:
+        courseID = self.courseID
+    data = locals()
+    del data['self']
+    if not users:
+      del data['users']
+    return self.server_get('user/get',data).json()
 
   def get_tas_from_course(self, courseID):
     params = {'courseID': courseID}
@@ -349,11 +350,12 @@ class server_accessor:
   def set_review_grade(self, matchID, grade):
       params = {'matchID': matchID, 'grade': grade}
       r = self.server_post('peermatch/insert_review_mark', params)
+      return r
 
   def set_review_grade_bulk(self, list_of_scores):
       params = {'reviewMarks': list_of_scores}
       r = self.server_post('peermatch/insert_review_marks_bulk', params)
-
+      return r
 
   ############################### PEER REVIEWS ##############################
 

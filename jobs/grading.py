@@ -379,3 +379,26 @@ def run_vancouver(reviews,truths,t=10):
     return grades 
 
 
+def mixed_loss(truth,score):
+    return .5 * quadratic_loss(truth,score) + .5 * linear_loss(truth,score)
+
+
+def execute_submission_grading(accessor,assignmentID):
+    subgrades = grade_assignment(accessor,assignmentID=assignmentID,courseID=1)
+    r = accessor.set_grades(assignmentID=assignmentID,grades=[(int(j),round(g,1)) for j,g in subgrades.items()])
+    return r
+
+
+def execute_peerreview_grading(accessor,assignmentID):
+    revgrades = grade_reviews_from_accessor(accessor, assignmentID=assignmentID, skip_loss=0.5,loss=mixed_loss)
+    mta_reviews = mechta_reviews_from_accessor(accessor,assignmentID=assignmentID)
+    matchids = mechta_reviews_to_matchids(mta_reviews)
+
+
+    ij2m = kkv_to_kv(matchids)
+    ij2g = kkv_to_kv(revgrades)
+
+    mgs = [(ij2m[ij],ij2g[ij]) for ij in ij2g.keys()]
+    mechta_match_grades = [{'matchID':int(m),'grade':round(g,1)} for m,g in mgs]
+    r = accessor.set_review_grade_bulk(mechta_match_grades)
+    return r
