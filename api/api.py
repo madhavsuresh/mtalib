@@ -384,10 +384,7 @@ class server_accessor:
     peerreview_params = locals()
     del peerreview_params['self']
     
-    pr = self.server_get('peerreviewscores/get', peerreview_params)
-    print 'hello'
-    exit(1)
-    print pr.text()
+    pr = self.server_get('peerreviewscores/get', peerreview_params).json()
     
     # replace [] with {} for 'answers' (seems to be a synonym in the JSON decoder)
     for item in [item for items in pr.values() for item in items]:
