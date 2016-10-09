@@ -1,9 +1,9 @@
 from ..api.api import *
-from ..algo.review_grades import review_grade,review_grades,NonScore
+from ..algo.review_grades import review_grade,review_grades,NonScore,quadratic_loss,linear_loss
 from ..algo.vancouver import *
-from ..algo.peer_review_util import *
+from ..algo.util import *
 from numbers import Number
-
+from ..algo.peer_assignment import cover_check
 
 import logging
 logger = logging.getLogger('mtalib.jobs.grading')
@@ -41,6 +41,8 @@ def mechta_reviews_to_matchids(mechta_reviews,id_key='matchID'):
 
 
 
+ 
+
 
 def reviews_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:NonScore.NO_ANSWER,'Skip':NonScore.SKIP},peer_key='reviewerID'):
     
@@ -52,6 +54,11 @@ def tas_from_accessor(accessor,courseID=None):
 
     return accessor.get_tas_from_course(courseID)['taIDs']
 
+def truths_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:NonScore.NO_ANSWER,'Skip':NonScore.SKIP},peer_key='reviewerID'):
+    reviews = reviews_from_accessor(accessor,assignmentID,courseID=courseID,rewrites=rewrites)
+    tas = tas_from_accessor(accessor,courseID=courseID)
+
+    return truths_from_reviews(reviews,tas)
 
 def missing_truths_from_accessor(accessor,assignmentID,courseID=None):
     params = locals()
@@ -79,6 +86,48 @@ def missing_truths(reviews,tas):
     
     return pairs_to_kvs(missing_pairs)
 
+# returns the first element if collection, or identity otherwise.
+def first(j):
+    try:
+        return j[0]
+    except TypeError:
+        return j
+
+
+def truths_to_cover(truths):
+    return list(set([first(j) for j in truths.keys()]))
+    
+def reviews_to_matches(reviews):
+    reviews = ensure_tuples(reviews)
+
+    # remove score and convert j or (j,q) to just j.
+    matches = list(set([(i,first(j)) for (i,j,_) in reviews]))
+
+    return matches
+
+def reviews_to_matches(reviews):
+    reviews = ensure_tuples(reviews)
+
+    # remove score and convert j or (j,q) to just j.
+    matches = list(set([(i,first(j)) for (i,j,_) in reviews]))
+
+    return matches
+
+def reviews_to_submissions(reviews):
+
+    reviews = ensure_tuples(reviews)
+
+    # remove i,score and convert j or (j,q) to just j.
+    submissions = list(set([first(j) for (i,j,_) in reviews]))
+    
+    return submissions
+
+
+
+
+
+    
+
 
 #####
 # convert peer review tuples from both TAs and peers 
@@ -105,8 +154,8 @@ def truths_from_reviews(reviews,tas):
         numeric_scores = [s for s in scores if isinstance(s,Number)]
         return avg(numeric_scores) if numeric_scores else NonScore.NO_ANSWER
 
-    ta_kkv = tuples_to_kkv([(j,i,v) for (i,j,v) in ta_tuples])
-    truths = {j:avg_scores(itov.values()) for j,itov in ta_kkv.items()}
+    ta_kkv = tuples_to_kkv([(j,i,s) for (i,j,s) in ta_tuples])
+    truths = {j:avg_scores(itos.values()) for j,itos in ta_kkv.items()}
     
     return truths
 
@@ -133,7 +182,7 @@ def grade_assignment(accessor, assignmentID, courseID = None):
         courseID = accessor.courseID
     
     reviews = reviews_from_accessor(accessor,assignmentID, courseID)
-    tas = accessor.get_tas_from_course(courseID)['taIDs']
+    tas = tas_from_accessor(accessor,courseID)
     weights = accessor.get_rubric_weights(assignmentID)
     
     # pull out and flatten the TA reviews.
@@ -152,13 +201,13 @@ def grade_assignment(accessor, assignmentID, courseID = None):
     # convert to kkv:              {j:{q:weighted_score,...},...}
     kkv = tuples_to_kkv(weighted)
     # sum weighted scores:     {j:weighted_average_scores,...}
-    summed = {j:sum(qtos.values()) for j,qtos in kkv.items()}
+    summed = {j:round(sum(qtos.values()),2) for j,qtos in kkv.items()}
     
     return summed
 
 
 
-def grade_reviews_from_accessor(accessor, assignmentID, skip_loss, courseID = None):
+def grade_reviews_from_accessor(accessor, assignmentID, skip_loss,loss=quadratic_loss, courseID = None):
 
     ### BASIC ALGORITHM:
     ###   1. grade each rubric question separately.
@@ -169,7 +218,7 @@ def grade_reviews_from_accessor(accessor, assignmentID, skip_loss, courseID = No
     # reviews: [(i,(j,q),score),...]    
     reviews = reviews_from_accessor(accessor,assignmentID,
                                     courseID=courseID)
-    tas = accessor.get_tas_from_course(courseID)['taIDs']
+    tas = tas_from_accessor(accessor,courseID)
     rubric_weights = accessor.get_rubric_weights(assignmentID)
     
     
@@ -179,7 +228,7 @@ def grade_reviews_from_accessor(accessor, assignmentID, skip_loss, courseID = No
     truths = truths_from_reviews(reviews,tas)
 
    
-    return grade_reviews(peer_reviews,truths,rubric_weights,skip_loss)
+    return grade_reviews(peer_reviews,truths,rubric_weights,skip_loss,loss)
 
 # GRADE_PEERS
 # Input:
@@ -189,7 +238,7 @@ def grade_reviews_from_accessor(accessor, assignmentID, skip_loss, courseID = No
 #   skip_loss = grade for skip.
 # Output:
 #   grades: {i:grade,...}
-def grade_peers(reviews,truths,weights,skip_loss):
+def grade_peers(reviews,truths,weights,skip_loss,loss=quadratic_loss):
     reviews = ensure_tuples(reviews)
     
     questions = weights.keys()
@@ -199,14 +248,14 @@ def grade_peers(reviews,truths,weights,skip_loss):
     qtruths = {q:{j:s for (j,qq),s in truths.items() if qq == q} for q in questions}
     
     # qig_grades: {q:{i:g,...},...}
-    qig_grades = {q:peer_grades(qreviews[q],qtruths[q],skip_loss) for q in questions}
+    qig_grades = {q:peer_grades(qreviews[q],qtruths[q],skip_loss,loss) for q in questions}
     
     # indiv_grades: {i:{q:g,...},...}
     iqg_grades = kkv_invert(qig_grades)
     
     total_weight = sum(weights.values())
     # grades {i:weighted_average_grade,...}
-    grades = {i:sum([g*weights[q] for q,g in qtog.items()]) for i,qtog in iqg_grades.items()}
+    grades = {i:round(sum([g*weights[q] for q,g in qtog.items()]),1) for i,qtog in iqg_grades.items()}
 
     return grades
 
@@ -218,7 +267,7 @@ def grade_peers(reviews,truths,weights,skip_loss):
 #   skip_loss = grade for skip.
 # Output:
 #   grades: {i:{j:grade,...},...}
-def grade_reviews(reviews,truths,weights,skip_loss):
+def grade_reviews(reviews,truths,weights,skip_loss,loss=quadratic_loss):
     reviews = ensure_tuples(reviews)
     
     questions = weights.keys()
@@ -228,7 +277,7 @@ def grade_reviews(reviews,truths,weights,skip_loss):
     qtruths = {q:{j:s for (j,qq),s in truths.items() if qq == q} for q in questions}
     
     # qijg: {q:{i:{j:g,...},...},...}
-    qijg = {q:review_grades(qreviews[q],qtruths[q],skip_loss) for q in questions}
+    qijg = {q:review_grades(qreviews[q],qtruths[q],skip_loss,loss) for q in questions}
 
 
     
@@ -258,7 +307,7 @@ def grade_reviews(reviews,truths,weights,skip_loss):
 #
 # preprocesses reviews and truths, runs vancouver, and returns submission grades (no variances)
 #
-def run_vancouver(reviews,truths,t=10):
+def prepare_for_vancouver(reviews,truths):
     tuples = ensure_tuples(reviews)
     
         
@@ -266,14 +315,15 @@ def run_vancouver(reviews,truths,t=10):
     tuples = [(i,j,s) for (i,j,s) in tuples if isinstance(s,Number)]
     # warn about truths with NonScores
     notruths = [j for (j,s) in truths.items() if not isinstance(s,Number)]
-    logger.info('No TA grade for submissions %s.',notruths)
+    if notruths:
+        logger.info('No TA grade for submissions %s.',notruths)
     # remove NonScores from truths
     truths = {j:s for (j,s) in truths.items() if isinstance(s,Number)}
     
     # need to make sure each submission has two or more peers.
     #    (a) strategy: for submissions with 1 or more review, add TA reviews.
     #    (b) note: there better be TA reviews for submissions with 1 
-    #            or more review.
+    #            or fewer review.
     #    (c) equivalently: from all reviews, remove TA if TA is only review.
     jis = tuples_to_kkv([(j,i,s) for (i,j,s) in tuples])
     
@@ -284,6 +334,8 @@ def run_vancouver(reviews,truths,t=10):
 
     # we better have ground truth for all removed reviews.
     j_singles = set([j for j,itos in jis.items() if len(itos) <= 1])
+    if j_singles:
+        logger.warn('only single review for submissions %s',j_singles)
     submissions_without_review = j_singles.difference(set(truths.keys()))
   
     if submissions_without_review:
@@ -309,10 +361,20 @@ def run_vancouver(reviews,truths,t=10):
     
     reviews = ijs_multiples
 
+    return (reviews,truths)
+
+
+def run_vancouver(reviews,truths,t=10):
+    (reviews,truths) = prepare_for_vancouver(reviews,truths)
     # call vancouver
-    (scores,qualities) = vancouver(reviews,{},t)
+    (scores,qualities) = vancouver(reviews,truths,t)
     
     grades = {j:s for j,(s,var) in scores.items()}
+
+    # add back in singles these did not get a grade in vancouver
+    # because we removed them.
+    #####grades.update({j:truths[j] for j in j_singles})
+    grades.update(truths)
 
     return grades 
 
