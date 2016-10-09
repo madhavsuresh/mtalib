@@ -3,7 +3,7 @@ from ..algo.util import *
 from ..algo.peer_assignment import *
 from grading import *
 from math import sqrt
-
+from peermatchflow import insert_ta_matches_from_accessor
 
 
 ####
@@ -259,12 +259,10 @@ def reoptimize_cover_execute(accessor, assignmentID, courseID = None,priority=su
     
     ## remove matchids
     logger.warn("calling DELETE_MATCH_BULK on %s",remove_matchids)
-    print "NOT EXECUTED, UNCOMMENT SUBSEQUENT LINE IN CODE TO EXECUTE"
-    #accessor.delete_match_bulk(remove_matchids)
+    accessor.peermatch_delete_match_bulk(remove_matchids)
 
     ## assign new ta reviews.
     logger.warn("calling INSERT_TA_MATCHES on %s",add)
-    print "NOT EXECUTED, UNCOMMENT SUBSEQUENT LINE IN CODE TO EXECUTE"
-    #insert_ta_matches_from_accessor(accessor,assignmentID,add)
+    insert_ta_matches_from_accessor(accessor,assignmentID,add)
 
     return True
