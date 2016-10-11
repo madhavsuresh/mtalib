@@ -73,6 +73,11 @@ def insert_ta_matches_for_insufficiently_reviewed(accessor,assignmentID,courseID
     
     return subs
 
+def check_cover_from_accessor(accessor, assignmentID, courseID = None):
+    reviews = reviews_from_accessor(accessor,assignmentID,courseID)
+    truths = truths_from_accessor(accessor,assignmentID,courseID)
+    return check_cover(reviews,truths)
+
 
 def check_cover(reviews,truths):
     reviews = ensure_tuples(reviews)

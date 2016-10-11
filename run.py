@@ -2,7 +2,7 @@ import config
 import logging
 import logging.config
 import events.event as event
-from api import api
+import api.api
 
 def main():
     logging.config.dictConfig(config.dictLogConfig)

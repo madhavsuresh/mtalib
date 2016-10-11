@@ -147,7 +147,7 @@ def truths_from_reviews(reviews,tas):
 
     missing = missing_truths(ta_tuples,tas)
     if missing:
-        logger.warn("missing TA reviews by TAs %s for submissions %s",missing.keys(),[j for js in missing.values() for j in js])
+        logger.warn("missing TA reviews by TAs %s for submissions %s",missing.keys(),list(set([j for js in missing.values() for j in js])))
     
 
     def avg_scores(scores):

@@ -25,6 +25,16 @@ def kkv_to_tuples(kkv):
     return [(i,j,v) for (i,jtov) in kkv.items() for j,v in jtov.items()]
 
 def pairs_to_kvs(pairs):
+    i_s = set([i for (i,_) in pairs])
+    
+    kvs = {i:[] for i in i_s}
+    
+    for i,v in pairs:
+        kvs[i].append(v)
+        
+    return kvs
+
+
     tuples = [(i,j,None) for i,j in pairs]
     
     kkv = tuples_to_kkv(tuples)
@@ -40,8 +50,12 @@ def kvs_invert(kvs):
     pairs = [(j,i) for (i,j) in kvs_to_pairs(kvs)]
     return pairs_to_kvs(pairs)
 
-def ensure_kvs(kvs):
-    return kvs if isinstance(kvs,dict) else pairs_to_kvs(kvs)
+def ensure_kvs(kvs_or_pairs):
+    return kvs_or_pairs if isinstance(kvs_or_pairs,dict) else pairs_to_kvs(kvs_or_pairs)
+
+def ensure_pairs(kvs_or_pairs):
+    return kvs_or_pairs if not isinstance(kvs_or_pairs,dict) else kvs_to_pairs(kvs_or_pairs)
+
 
 # input: [(i,j,v),...]
 # output: {i => j => v,...}

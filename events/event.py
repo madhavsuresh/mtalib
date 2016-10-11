@@ -1,6 +1,6 @@
-from api import api
+from ..api import api
 from datetime import datetime
-import config
+from .. import config
 import logging
 
 logger = logging.getLogger('mtalib.events.event')
