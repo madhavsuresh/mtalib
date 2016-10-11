@@ -3,6 +3,10 @@ import math
 import random
 from util import *
 from copy import copy,deepcopy
+import logging
+from pprint import pprint
+
+logger = logging.getLogger()
 
 ####
 # GENERATE PEER ASSIGNMENT
@@ -20,13 +24,14 @@ from copy import copy,deepcopy
 # Notes:
 #    - if 'cover' is [], then it will replace with a random cover.
 #      (pass by reference)
-def peer_assignment_covered(peers,submissions,k,cover=[],excludes={},num_tries=1000):
-    
+def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000):
+
     m = len(submissions)
     n = len(peers)
 
     excludes = {p : (excludes[p] if p in excludes else []) for p in peers}
-    
+
+
     # load = ceil(n * k / m)
     # this is how many copies of random submission lists we need.
     load = int(math.ceil((n * k) / m))
@@ -36,32 +41,46 @@ def peer_assignment_covered(peers,submissions,k,cover=[],excludes={},num_tries=1
     cover_len = math.ceil(n/load)
     if len(cover) < cover_len:
         # get random elements from 'submissions \ cover'
-        gen_cover = random.sample(set(submissions).difference(set(cover)),int(math.ceil(n/load)))
+        gen_cover = random.sample(set(submissions)-set(cover),int(math.ceil(n/load)))
         # add to cover.
         cover.extend(gen_cover) 
 
 
-    # assign the agents to the cover. 
-    cover_assignments = peer_assignment(peers,cover,1,excludes,num_tries)
+    # assign the peers to the cover. 
+    (cover_assignments,excess) = peer_assignment_excess(peers,cover,1,excludes,num_tries)
     if not cover_assignments:
         return {}
+
+#    print "COVER"
+#    pprint(kvs_invert(cover_assignments))
 
 
     # add cover_assignment to excludes.
     excludes = {p: excludes[p] + cover_assignments[p] for p in peers}
 
-    # the remaining submissions
-    residual_submissions = list(set(submissions).difference(set(cover)))
 
-    residual_assignments = peer_assignment(peers,residual_submissions,k-1,excludes,num_tries)
+    # the remaining submissions
+    residual_submissions = list(set(submissions)-(set(cover)))
+
+    residual_assignments = peer_assignment(peers,residual_submissions,k-1,excludes,num_tries,once=excess)
     if not residual_assignments:
         return {}
-    
+
+#    print "RESIDUAL"
+#    pprint(kvs_invert(residual_assignments))
+
+
     # combine cover and residual assignment
     assignments = {p: cover_assignments[p] + residual_assignments[p] for p in peers}
 
+#    print "ASSIGNMENT"
+#    pprint(kvs_invert(assignments))
+
+
     return assignments
     
+
+
 ####
 # GENERATE PEER ASSIGNMENT
 # Input:
@@ -71,9 +90,15 @@ def peer_assignment_covered(peers,submissions,k,cover=[],excludes={},num_tries=1
 #    - excludes: {peer id : [excluded submission ids]}
 #    - num_tries: attempts a random matching this many times
 #         (fails and returns {} if num_tries is exceeded)
-# Output:
+#    - once: [submission ids] but only match once.
+# peer_assignment output: assignments
+# peer_assignment_excess output: (assignments,excess)
 #    - assignments: {peer id : [submission_ids]} 
-def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
+#    - excess: [submission ids] that need one more match. 
+def peer_assignment(peers,submissions,k,excludes={},num_tries=1000,once=[]):
+    return(peer_assignment_excess(peers,submissions,k,excludes,num_tries,once)[0])
+
+def peer_assignment_excess(peers,submissions,k,excludes={},num_tries=1000,once=[]):
     n = len(peers)
     m = len(submissions)
 
@@ -84,7 +109,9 @@ def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
     load = (n * k) // m
 
     peer_reps = list(peers) * k
-    submission_reps = submissions * load
+    submission_reps = once + submissions * load
+    submissions_copy = copy(submissions)
+    diff = len(peer_reps)-len(submission_reps)
 
     count = 0
     # try to get a matching with out duplicates or excluded assignments.
@@ -94,24 +121,27 @@ def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
 
 
         # add random extra submissions because submission_reps is rounded down.
-        excess = random.sample(submissions,n*k - m*load)
+        random.shuffle(submissions_copy)
+        add = submissions_copy[:diff]
+        excess = submissions_copy[diff:]
 
-        # shuffle.
+        # shuffle peers (this is better than shuffling submissions)
         random.shuffle(peer_reps)
 
         # match.
-        assignments = pairs_to_kvs(zip(peer_reps,submission_reps + excess))
+        assignments = pairs_to_kvs(zip(peer_reps,submission_reps + add))
+
 
         # check for duplicates or excluded assignemnts
         if any(duplicates(assignments[p] + excludes[p]) for p in peers):
             continue
 
 
-        print "finished with " + str(count) + " tries."
-        return assignments
+        logger.warn("matching found in %s tries.",count)
+        return (assignments,excess)
  
     # we failed to find an assignment given the in num_tries tries.
-    return {}
+    return ({},[])
 
 
 
@@ -119,16 +149,17 @@ def peer_assignment(peers,submissions,k,excludes={},num_tries=1000):
 # CHECK TO SEE IF A PEER ASSIGNMENT IS VALID
 #    - peers are not assigned to review the same submission multiple times.
 #    - peers are not assigned to review any submissions in their excludes list.
-def peer_assignment_check(peers,assignments,cover,excludes):
+def peer_assignment_check(peers,assignment,cover,excludes):
     excludes = {p : (excludes[p] if p in excludes else []) for p in peers}
+
 
     # fail if peers are assigned duplicate assignments, 
     # or assignments required to be excluded.
-    if any(duplicates(assignments[p] + excludes[p]) for p in peers):
+    if any(duplicates(assignment[p] + excludes[p]) for p in peers):
         return False
 
     # fail if any peers are uncovered.
-    if 0 in check_cover(assignment,cover):
+    if 0 in cover_check(assignment,cover):
         return False
 
     return True
