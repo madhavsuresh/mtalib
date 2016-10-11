@@ -106,7 +106,7 @@ def peer_assignment_excess(peers,submissions,k,excludes={},num_tries=1000,once=[
 
 
     # number of peers per submission (rounded down).
-    load = (n * k) // m
+    load = (n * k - len(once)) // m
 
     peer_reps = list(peers) * k
     submission_reps = once + submissions * load
