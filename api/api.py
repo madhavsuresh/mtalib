@@ -214,6 +214,10 @@ class server_accessor:
 
 ## UPDATE_RUBRIC
 ##   - allows partial update.
+## NOTE: cannot set 'displayPriority' = 0.  Any other integers work.  This is
+##   due to an issue with the MechTA backend for compatibility with the UI where
+##   updates from the UI which are not intended to update displayPriority
+##   set displayPriority=0.  To ignore those, we have to ignore them all.
   def update_rubric_question(self, assignmentID, questionID, courseID = None, **kwargs):
     """Creates rubric for given courseID and assignmentID with given name"""
 
@@ -324,13 +328,17 @@ class server_accessor:
     if r.text:
       print r.text
       return json.loads(r.text)
+    return r
+
   def peermatch_delete_all(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.post(self.server_url + 'peermatch/delete_all', data=json.dumps(params))
+    r = self.server_post('peermatch/delete_all', params)
     if r.text:
         return json.loads(r.text)
     else:
         return r
+
+
   def peermatch_get_peer_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = requests.post(self.server_url + 'peermatch/get_peer_ids', data=json.dumps(params))
