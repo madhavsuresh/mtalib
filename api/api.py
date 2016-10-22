@@ -372,6 +372,11 @@ class server_accessor:
       r = self.server_post('peermatch/insert_review_marks_bulk', params)
       return r
 
+  def peermatch_swap_review_match(self, match_ID, new_review_id):
+      params = {'matchID': match_ID, 'reviewerToSwapID': new_review_id}
+      r = self.server_post('peermatch/swap_peer_review', params)
+      return r
+
   ############################### PEER REVIEWS ##############################
 
   def create_peerreviews(self, peerreviews_params):
