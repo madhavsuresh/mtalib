@@ -5,12 +5,6 @@ from requests.auth import HTTPBasicAuth
 #import config
 
 
-
-
-
-
-
-
 class server_accessor:
   """Class for accessing the Mechanical TA API"""
   server_url = ''
@@ -379,11 +373,24 @@ class server_accessor:
 
   ############################### PEER REVIEWS ##############################
 
-  def create_peerreviews(self, peerreviews_params):
-    return requests.post(self.server_url + 'peerreviews/create', data = json.dumps(peerreviews_params))
+  def create_peerreview_int(self, match_id, question_id, answer_int):
+      r = self.server_post('peerreviewscores/create_int', {'matchID': match_id, 'questionID': question_id, 'answerInt': answer_int})
+      return r
 
+  def create_peerreview_text(self, match_id, question_id, answer_text):
+      r = self.server_post('peerreviewscores/create_text', {'matchID': match_id, 'questionID': question_id, 'answerText': answer_text})
+      return r
 
- 
+  def create_peerreview(self, dict_params):
+      '''{'match_id': matchid, 'question_id': questionid, 'answer_type': 'string'|'int','answer_value':val}'''
+      if dict_params['answer_type'] == 'int':
+          return self.create_peerreview_int(dict_params['match_id'], dict_params['question_id'], dict_params['answer_value'])
+      elif dict_params['answer_type'] == 'string':
+          return self.create_peerreview_text(dict_params['match_id'], dict_params['question_id'], dict_params['answer_value'])
+
+  def create_peerreviews_bulk(self, listofparams):
+      for d in listofparams:
+          self.create_peerreview(d)
 
  
 
