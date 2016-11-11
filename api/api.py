@@ -1,7 +1,8 @@
-import requests, json, string, copy, pprint, pytz, calendar, time
+import requests, json, string, pprint, pytz, calendar, time
 from datetime import datetime, timedelta
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
+from copy import copy, deepcopy
 #import config
 
 
@@ -36,6 +37,14 @@ class server_accessor:
       r = requests.post(self.server_url + endpoint, data=json.dumps(params), 
               auth=(self.username, self.password))
       return r
+
+  def check_connection(self,courseID=None):
+    if courseID == None:
+      courseID = self.courseID
+    # would be better to ping a specific endpoint to check the connection.
+    r = self.server_get('user/get_tas_from_courseid', {'courseID':courseID})
+    return r.status_code == requests.codes.ok
+
 
   ############################ COURSE ###########################
 
@@ -178,33 +187,61 @@ class server_accessor:
     return r.json()
 
 
+  # THIS ENDPOINT HAS NOT BEEN IMPLEMENTED.
   def get_assignment_event(self, courseID, assignmentID=None):
       if assignmentID:
           params = {'courseID': courseID, 'assignmentID': assignmentID}
       else:
           params = {'courseID': courseID}
 
-      r = requests.get(self.server_url +
-                       'assignment/get_all_from_course',
-                       data=json.dumps(params))
-      return json.loads(r.text)
+      r = self.server_get('assignment/get_all_from_course',params)
+      return r.text
 
   ################################## Rubrics ##########################################
 
-  def create_rubric_question(self, assignmentID, name, courseID = None, question = 'test question?', hidden = 0, displayPriority = 0, options = [{'label' : 'A' , 'score' : 5.0}, {'label' : 'B' , 'score' : 4.0}, {'label' : 'C' , 'score' : 3.0}, {'label' : 'D' , 'score' : 2.0}, {'label' : 'E' , 'score' : 1.0}, {'label' : 'Pass', 'score' : -1.0}],weight=1.0):
-    """Creates rubric for given courseID and assignmentID with given name"""
+  rubric_question_defaults = {
+    'name':'Default question', 
+    'question':'Default question text.', 
+    'hidden':0, 
+    'displayPriority':0, 
+    'weight':10,
+    'options':   [{'label' : '10' , 'score' : 1.0}, 
+                  {'label' : '9' , 'score' : 0.9}, 
+                  {'label' : '8' , 'score' : 0.8}, 
+                  {'label' : '7' , 'score' : 0.7}, 
+                  {'label' : '6' , 'score' : 0.6}, 
+                  {'label' : '5' , 'score' : 0.5}, 
+                  {'label' : '4' , 'score' : 0.4}, 
+                  {'label' : '3' , 'score' : 0.3}, 
+                  {'label' : '2' , 'score' : 0.2}, 
+                  {'label' : '1' , 'score' : 0.1}, 
+                  {'label' : '0' , 'score' : 0.0},                   
+                  {'label' : 'Skip', 'score' : -0.1}]    
+  }
 
-    # scores can be normalized, and then reweighted by weight.
-    # need to store reweighted scored in MTA.
-    for o in options:
-      o['score'] *= weight
+  def create_rubric_question(self, assignmentID, courseID = None, defaults=rubric_question_defaults,**kwargs):
+    """Creates rubric for given courseID and assignmentID with given name"""
 
     if courseID == None:
       courseID = self.courseID
-    rubric_params = locals()
-    del rubric_params['self']
-    del rubric_params['weight']
-    return self.server_post('rubric/create', rubric_params)
+
+    params = copy(defaults)
+    params.update(kwargs)
+    params['assignmentID'] = assignmentID
+    params['courseID'] = courseID
+
+
+    weight = params['weight']
+    del params['weight']
+
+    # scores can be normalized, and then reweighted by weight.
+    # need to store reweighted scored in MTA.
+    options = params['options'] = copy(params['options'])
+    for o in options:
+      o['score'] *= weight
+
+
+    return self.server_post('rubric/create', params)
 
 ## UPDATE_RUBRIC
 ##   - allows partial update.
@@ -312,9 +349,9 @@ class server_accessor:
 
   def peermatch_get(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.post(self.server_url + 'peermatch/get', data=json.dumps(params))
+    r = self.server_get('peermatch/get', params)
     #TODO: error checking
-    return json.loads(r.text)
+    return r.json()['peerMatches']
 
   def peermatch_create_bulk(self, assignmentID, peerMatchesList):
     params = {'assignmentID': assignmentID, 'peerMatches': peerMatchesList}
@@ -335,23 +372,24 @@ class server_accessor:
 
   def peermatch_get_peer_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.post(self.server_url + 'peermatch/get_peer_ids', data=json.dumps(params))
-    return json.loads(r.text)
+    r = self.server_get('peermatch/get_peer_ids', params)
+    return r.json()['peerList']
 
   def peermatch_get_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
-    r = requests.post(self.server_url + 'peermatch/get_submission_ids', data=json.dumps(params))
-    return json.loads(r.text)
+    r = self.server_get('peermatch/get_submission_ids',params)
+    return r.json()['submissionList']
 
   def peermatch_get_peer_and_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = self.server_get('peermatch/get_peer_and_submission_ids', params)
-    return json.loads(r.text)
+    return r.json()
 
   def peermatch_delete_match_bulk(self, match_id_list):
       params = {'matchIDList': match_id_list}
       r = self.server_post('peermatch/delete_match_bulk', params)
       if r.text:
+        print r.text
         return json.loads(r.text)
       else:
         return r
@@ -387,6 +425,7 @@ class server_accessor:
           return self.create_peerreview_int(dict_params['match_id'], dict_params['question_id'], dict_params['answer_value'])
       elif dict_params['answer_type'] == 'string':
           return self.create_peerreview_text(dict_params['match_id'], dict_params['question_id'], dict_params['answer_value'])
+
 
   def create_peerreviews_bulk(self, listofparams):
       for d in listofparams:

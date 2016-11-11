@@ -1,5 +1,6 @@
 from __future__ import division
 from util import *
+from math import sqrt
 
 MIN_VARIANCE = 0.001    # don't let 1/variance blow up if a peer is very accurate.
 DEFAULT_VARIANCE = 1.0  # this does not matter as long as it is the same.
@@ -146,3 +147,38 @@ def vancouver_preconditions(reviews,truths,t=0):
     lmin = min(len(peers) for (j, peers) in jassign.items())
 
     return kmin >=2 and lmin >= 2
+
+# compares vancouver weighted scores to scores from truths.
+# vancouver sets final score to truth, so this needs to redo the last round 
+# of vancouver.
+def vancouver_errors(reviews,truths,scores,qualities,tas = []):
+    
+    #{j:{i:score,...},...}
+    subreviews = kkv_invert(reviews)
+    
+    submissions = subreviews.keys()
+
+    def meanvar(valsweights):
+        (_,weights) = zip(*valsweights)
+        
+        total_weight = sum(weights)
+
+        mean = sum([val*weight for (val,weight) in valsweights])/total_weight
+        
+        var = sum([((val - mean)**2 * weight) for (val,weight) in valsweights])/total_weight
+
+        return (mean,var)
+        
+
+    peerscores = {j:meanvar([(s,1/qualities[i])  for i,s in subreviews[j].items() if i not in tas])
+                  for j in submissions} 
+
+    withouttruths = [j for j in submissions if j not in truths]
+    withtruths = truths.keys()
+
+    
+    errors_withtruth = {j:abs(peerscores[j][0] - truths[j]) for j in withtruths if j in peerscores}
+    errors_withouttruth = {j:sqrt(peerscores[j][1]) for j in withouttruths if j in peerscores}
+
+    return errors_withtruth,errors_withouttruth
+

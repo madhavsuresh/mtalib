@@ -12,6 +12,12 @@ class NonScore:
     def __str__(self):
         return 'NonScore.' + self.__class__.__name__
 
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 class NO_ANSWER(NonScore):
     pass
 
@@ -98,15 +104,10 @@ def review_grades(reviews, truths, skip_loss,loss=quadratic_loss):
 
 def peer_grades(reviews, truths, skip_loss,loss=quadratic_loss):
 
-    grades = ensure_kkv(review_grades(reviews,truths,skip_loss,loss))
+    ijtog = ensure_kkv(review_grades(reviews,truths,skip_loss,loss))
 
     # a peer's grade is the average of 
-    peer_grades = {i:avg(jtog.values()) for (i,jtog) in grades.items()}
+    itog = {i:avg(jtog.values()) for (i,jtog) in ijtog.items()}
 
-    # peers with no grade
-    nogrades = [i for (i,jtog) in ijtog.items() if not jtog]
 
-    if nogrades:
-         logger.warn('There are peers with no review grades: %s',nogrades)
-
-    return peer_grades
+    return itog

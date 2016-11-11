@@ -2,6 +2,7 @@ from __future__ import division
 from ..algo.util import *
 from ..algo.peer_assignment import *
 from grading import *
+import peermatchflow as match
 from math import sqrt
 from peermatchflow import insert_ta_matches_from_accessor
 
@@ -16,8 +17,9 @@ from peermatchflow import insert_ta_matches_from_accessor
 #     [submission,...]
 #
 def insufficiently_reviewed(reviews,truths,required=2):
-    graded = truths.keys() # submissions that have a TA assigned.
-    unsufficiently = insufficiently_peer_reviewed(reviews)
+    graded = [first(j) for j in truths.keys()] # submissions that have a TA assigned.
+
+    unsufficiently = insufficiently_peer_reviewed(reviews,required=required)
 
     return list(set(unsufficiently) - set(graded))
 
@@ -73,10 +75,16 @@ def insert_ta_matches_for_insufficiently_reviewed(accessor,assignmentID,courseID
     
     return subs
 
-def check_cover_from_accessor(accessor, assignmentID, courseID = None):
-    reviews = reviews_from_accessor(accessor,assignmentID,courseID)
-    truths = truths_from_accessor(accessor,assignmentID,courseID)
-    return check_cover(reviews,truths)
+
+def check_cover_from_accessor(accessor, assignmentID):
+    matches = match.mechta_matching_to_matching(accessor.peermatch_get(assignmentID))
+    courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
+    tas = tas_from_accessor(accessor,courseID)
+
+    cover = [j for (i,j) in matches if i in tas]
+
+    return cover_check(matches,cover)
+
 
 
 def check_cover(reviews,truths):
@@ -109,6 +117,14 @@ def ensure_cover_from_accessor(accessor, assignmentID, courseID = None,priority=
     return ensure_cover(reviews,truths,weights,priority)
 
 
+def get_cover_from_accessor(accessor,assignmentID):
+    courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
+  
+    matching = match.mechta_matching_to_matching(accessor.peermatch_get(assignmentID))
+    tas = accessor.get_tas_from_course(courseID)['taIDs']
+
+    return [j for (i,j) in matching if i in tas]
+    
 
 
 # given reviews and truths, return submissions needed to be covered 
