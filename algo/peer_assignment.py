@@ -24,7 +24,7 @@ logger = logging.getLogger()
 # Notes:
 #    - if 'cover' is [], then it will replace with a random cover.
 #      (pass by reference)
-def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000):
+def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000,cover_size=None):
 
     m = len(submissions)
     n = len(peers)
@@ -38,8 +38,11 @@ def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000
 
     # extend cover to be the right length 
     # by adding random elements from 'submissions \ cover'
-    cover_len = math.ceil(n/load)
-    if len(cover) < cover_len:
+    if not cover_size:
+        cover_size = math.ceil(n/load)
+
+    if len(cover) < cover_size:
+        print "extending cover"
         # get random elements from 'submissions \ cover'
         gen_cover = random.sample(set(submissions)-set(cover),int(math.ceil(n/load)))
         # add to cover.
@@ -53,6 +56,13 @@ def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000
 
 #    print "COVER"
 #    pprint(kvs_invert(cover_assignments))
+    if n / cover_size > load:
+        logger.warn("cover load %.2f, regular load %d",n / cover_size,load) 
+        excess = []
+
+    # if covered_assignments have more than there share of reviewers, then 
+    # then ignore excess:
+    
 
 
     # add cover_assignment to excludes.
@@ -63,6 +73,8 @@ def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000
     residual_submissions = list(set(submissions)-(set(cover)))
 
     residual_assignments = peer_assignment(peers,residual_submissions,k-1,excludes,num_tries,once=excess)
+
+
     if not residual_assignments:
         return {}
 
@@ -170,6 +182,7 @@ def peer_assignment_check(peers,assignment,cover,excludes):
 # Note:
 #    - count = 0 implies that there are uncovered peers.
 def cover_check(assignment,cover):
+    assignment = ensure_kvs(assignment)
 
     covercounts = [(len([j for j in js if j in cover]),i) for i,js in assignment.items()]
 

@@ -47,8 +47,8 @@ def kvs_to_pairs(kvs):
     return pairs
 
 def kvs_invert(kvs):
-    pairs = [(j,i) for (i,j) in kvs_to_pairs(kvs)]
-    return pairs_to_kvs(pairs)
+    pairs = ensure_pairs(kvs)
+    return pairs_to_kvs([(j,i) for (i,j) in pairs])
 
 def ensure_kvs(kvs_or_pairs):
     return kvs_or_pairs if isinstance(kvs_or_pairs,dict) else pairs_to_kvs(kvs_or_pairs)
