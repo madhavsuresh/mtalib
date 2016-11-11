@@ -117,7 +117,7 @@ def insert_ta_matches(assignmentID, cover):
 
 
 def execute_from_accessor(accessor,assignmentID,k=3,cover_size=40):
-    (assn,cov) = peermatch_from_accessor(accessor,assignmentID,k=kcover_size=cover_size)
+    (assn,cov) = peermatch_from_accessor(accessor,assignmentID,k=k,cover_size=cover_size)
     match.insert_matching_from_accessor(accessor,assignmentID,assn)
     match.insert_ta_matches_from_accessor(accessor,assignmentID,cov)
 
