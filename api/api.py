@@ -340,6 +340,14 @@ class server_accessor:
     r = self.server_post('grades/create', grades_params)
     return r
 
+  def get_submission_grades(self):
+     r = self.server_get('grades/submissions', None);
+     return r.json()['scores']
+
+  def get_peerreview_grades(self):
+     r = self.server_get('grades/peerreviews', None);
+     return r.json()['scores']
+
 ################################ PEERMATCH ################################
   def peermatch_create(self, assignmentID, submissionID, reviewerID):
     params = {'assignmentID': assignmentID, 'peerMatch': {"submissionID" : submissionID, "reviewerID": reviewerID}}
