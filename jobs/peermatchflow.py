@@ -1,6 +1,8 @@
 from ..api.api import *
 from ..algo import peer_assignment as assignment
+from ..jobs import grading
 from .. import config
+import random
 from ..algo.util import *
 import logging
 
@@ -102,7 +104,7 @@ def assign_reviews_to_nonsubmitters(accessor,assignmentID,recent=4):
 
     if set(cov) == set(originalcover):
         logger.info("original cover is sufficient")
-        mechta_matching = match.matching_to_mechta_matching(assignments)
+        mechta_matching = matching_to_mechta_matching(assignments)
         logger.info("assigning %s peer reviews to %s peers.",len([j for js in assignments.values() for j in js]),len(assignments.keys()))
         accessor.peermatch_create_bulk(assignmentID, mechta_matching)
     else:
@@ -118,8 +120,8 @@ def insert_ta_matches(assignmentID, cover):
 
 def execute_from_accessor(accessor,assignmentID,k=3,cover_size=40):
     (assn,cov) = peermatch_from_accessor(accessor,assignmentID,k=k,cover_size=cover_size)
-    match.insert_matching_from_accessor(accessor,assignmentID,assn)
-    match.insert_ta_matches_from_accessor(accessor,assignmentID,cov)
+    insert_matching_from_accessor(accessor,assignmentID,assn)
+    insert_ta_matches_from_accessor(accessor,assignmentID,cov)
 
     return (assn,cov)
 
@@ -144,17 +146,17 @@ def get_active_peers(accessor,assignmentID,recent=4):
 # returns {peer:avg_review_grade,...}
 def review_grade_tallies(accessor,assignmentID):
     courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
-    tas = tas_from_accessor(accessor,courseID)
+    tas = grading.tas_from_accessor(accessor,courseID)
 
     agrades = {}
     for assn in range(1,assignmentID+1):
 
         print "CALCULATING REVIEW GRADES FOR ASSIGNMENT: " + str(assn)
-        reviews = reviews_from_accessor(accessor,assn)
-        truths = truths_from_reviews(reviews,tas)
+        reviews = grading.reviews_from_accessor(accessor,assn)
+        truths = grading.truths_from_reviews(reviews,tas)
         weights = accessor.get_rubric_weights(assn)
 
-        agrades[assn] = grade_peers(reviews,truths,weights,skip_loss=0.5)
+        agrades[assn] = grading.grade_peers(reviews,truths,weights,skip_loss=0.5)
 
     # igrades: {i:{assn:grade,...},...}
     igrades = kkv_invert(agrades)
