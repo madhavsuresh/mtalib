@@ -328,6 +328,10 @@ class server_accessor:
     return weights
 
 
+  ############################### APPEALS ##############################
+  def get_appeals(self):
+      r = self.server_get('appeals/get', None);
+      return r.json()['appeals']
 
   ############################### GRADES ##############################
 
