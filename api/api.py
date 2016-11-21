@@ -333,6 +333,13 @@ class server_accessor:
       r = self.server_get('appeals/get', None);
       return r.json()['appeals']
 
+  def get_appeals_by_assignment(self, assignmentID):
+      all_appeals = self.get_appeals()
+      matches_for_assignment = self.peermatch_get(assignmentID)
+      matchIDs = [match['matchID'] for match in matches_for_assignment] 
+      appeals_for_assignment = filter(lambda x: x['matchID'] in matchIDs  , all_appeals)
+      return appeals_for_assignment
+
   ############################### GRADES ##############################
 
   def set_grades(self,assignmentID, grades, courseID = None):
