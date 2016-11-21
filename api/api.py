@@ -333,12 +333,40 @@ class server_accessor:
       r = self.server_get('appeals/get', None);
       return r.json()['appeals']
 
-  def get_appeals_by_assignment(self, assignmentID):
+  def get_unresolved_appeals(self):
       all_appeals = self.get_appeals()
+      unresolved_appeals = filter(lambda x: x['appealType'] != 'resolvedAppeal', all_appeals)
+      return unresolved_appeals
+
+  def get_resolved_appeals(self):
+      all_appeals = self.get_appeals()
+      resolved_appeals = filter(lambda x: x['appealType'] == 'resolvedAppeal', all_appeals)
+      return resolved_appeals
+
+  def get_resolved_appeals_by_assignment(self, assignmentID):
+      all_appeals = self.get_resolved_appeals()
       matches_for_assignment = self.peermatch_get(assignmentID)
       matchIDs = [match['matchID'] for match in matches_for_assignment] 
       appeals_for_assignment = filter(lambda x: x['matchID'] in matchIDs  , all_appeals)
       return appeals_for_assignment
+
+  def get_unresolved_appeals_by_assignment(self, assignmentID):
+      all_appeals = self.get_unresolved_appeals()
+      matches_for_assignment = self.peermatch_get(assignmentID)
+      matchIDs = [match['matchID'] for match in matches_for_assignment] 
+      appeals_for_assignment = filter(lambda x: x['matchID'] in matchIDs  , all_appeals)
+      return appeals_for_assignment
+  
+  def set_appeal_as_resolved(self, appealMessageID):
+      params = {'appealMessageID': appealMessageID}
+      r =  self.server_post('/appeals/set_as_resolved', params)
+      return r.text
+
+  def create_appeal_type(self, appealType):
+      params = {'appealType': appealType}
+      r = self.server_post('/appeals/create_appeal_type', params)
+      return r.text
+             
 
   ############################### GRADES ##############################
 
