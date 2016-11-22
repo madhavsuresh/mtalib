@@ -367,11 +367,42 @@ class server_accessor:
     r = self.server_post('grades/create', grades_params)
     return r
 
-  def get_submission_grades(self):
+  # 
+  def get_submission_grades(self,assignmentID):
+
+    grades = self.get_all_submission_grades()
+
+    jtoi = {j:i for (i,j) in self.get_student_and_submission_ids(assignmentID)}
+    
+    # filter for assignmentID
+    grades = [d for d in grades if d['submissionID'] in jtoi]
+
+    # add studentID.
+    for d in grades:
+      d['studentID'] = jtoi[d['submissionID']]
+
+    return grades
+
+  def get_peerreview_grades(self,assignmentID):
+    grades = self.get_all_peerreview_grades()
+
+    # [{'peerID':peerID,'submissionID':submissionID,'matchID':matchID} ...]
+    peermatchs = self.peermatch_get(assignmentID)
+
+    id_to_match = {d['matchID']:d for d in peermatchs}
+
+    # filter for assignmentID, add peerID and submissionID
+    grades = [dict(d,**id_to_match[d['matchID']]) for d in grades if d['matchID'] in id_to_match]
+
+    return grades
+
+    
+
+  def get_all_submission_grades(self):
      r = self.server_get('grades/submissions', None);
      return r.json()['scores']
 
-  def get_peerreview_grades(self):
+  def get_all_peerreview_grades(self):
      r = self.server_get('grades/peerreviews', None);
      return r.json()['scores']
 
@@ -415,6 +446,13 @@ class server_accessor:
     r = self.server_get('peermatch/get_submission_ids',params)
     return r.json()['submissionList']
 
+
+  def get_student_and_submission_ids(self, assignmentID):
+    data = self.peermatch_get_peer_and_submission_ids(assignmentID)['peerSubmissionPairs']
+    return [(d['peerID'],d['submissionID']) for d in data]
+
+  # BADLY NAMED!  Gets *student* and submission)
+  # use wrapper above instead!!
   def peermatch_get_peer_and_submission_ids(self, assignmentID):
     params = {'assignmentID': assignmentID}
     r = self.server_get('peermatch/get_peer_and_submission_ids', params)
