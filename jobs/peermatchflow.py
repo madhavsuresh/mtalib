@@ -51,6 +51,7 @@ def matching_to_mechta_matching(matchings):
 
 def insert_matching_from_accessor(accessor,assignmentID,matching):
   mechta_matching = matching_to_mechta_matching(matching)
+  random.shuffle(mechta_matching)  # make sure the cover is random in the peers ordering.
   logger.warn("assigning %s reviews to %s users.",len([j for js in matching.values() for j in js]),len(matching.keys()))
   return accessor.peermatch_create_bulk(assignmentID, mechta_matching)
   
