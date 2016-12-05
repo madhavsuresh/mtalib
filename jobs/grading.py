@@ -362,6 +362,36 @@ def prepare_for_vancouver(reviews,truths):
         logger.info('No TA grade for submissions %s.',notruths)
     # remove NonScores from truths
     truths = {j:s for (j,s) in truths.items() if isinstance(s,Number)}
+
+
+
+    # input: tuples; output: tuples
+
+    # need to make sure each peer has two or more reviews.
+    #    (a) this really should not ever happen.  
+    #    (b) strategy: merge all peers with a single submission into one peer.
+    #    (c) if it's only one peer, discard review.
+    ijs = tuples_to_kkv(tuples)
+
+    # remove peers with one or fewer reviews.
+    ijs_multiples = {i:jtos for i,jtos in ijs.items() if len(jtos) > 1}
+
+    # orphaned reviews from removed peers.
+    orphaned_reviews = {j:s for i,jtos in ijs.items() if len(jtos) <= 1
+                            for j,s in jtos.items()}
+
+    # add orphaned reviews as one peer; or discard if only one.
+    if orphaned_reviews:
+        onereview_peers = [i for i,jtos in ijs.items() if len(jtos) <= 1]
+        logger.warn('peers %s have only performed one review.',onereview_peers)
+    
+        if len(orphaned_reviews) > 1:
+            ijs_multiples['metapeer'] = orphaned_reviews
+
+    tuples = kkv_to_tuples(ijs_multiples)
+
+
+    # input: tuples; output: tuples
     
     # need to make sure each submission has two or more peers.
     #    (a) strategy: for submissions with 1 or more review, add TA reviews.
@@ -384,25 +414,10 @@ def prepare_for_vancouver(reviews,truths):
     if submissions_without_review:
         logger.error('insufficient peer reviews to grade submissions %s without TA reviews.',submissions_without_review)
     
-    # need to make sure each peer has two or more reviews.
-    #    (a) this really should not ever happen.  
-    #    (b) strategy: merge all peers with a single submission into one peer.
-    ijs = tuples_to_kkv(tuples)
 
-    # remove peers with one or fewer reviews.
-    ijs_multiples = {i:jtos for i,jtos in ijs.items() if len(jtos) > 1}
 
-    # orphaned reviews from removed peers.
-    orphaned_reviews = {j:s for i,jtos in ijs.items() if len(jtos) <= 1
-                            for j,s in jtos.items()} 
-    if orphaned_reviews:
-        onereview_peers = [i for i,jtos in ijs.items() if len(jtos) <= 1]
-        logger.warn('peers %s have only performed one review.',onereview_peers)
-    
-        ijs_multiples['metapeer'] = orphaned_reviews
-    
-    
-    reviews = ijs_multiples
+    # convert to kvv for output.
+    reviews = tuples_to_kkv(tuples)
 
     return (reviews,truths)
 
