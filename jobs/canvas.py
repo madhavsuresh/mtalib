@@ -1,6 +1,130 @@
-course = "43581"
-ACCESS_TOKEN = "1876~6qGWmwdADNBAUiMr4vJ0mmxi0pBh31cx9XQii96WI2XbG7hYbnBKWcxmOdR8tukJ"
+import requests
+import re
+from ..algo.util import *
+
+
+ACCESS_TOKEN = "junk"
 HEADERS = {"Authorization": "Bearer " + ACCESS_TOKEN}
+
+
+##
+## DATA
+##
+
+course = "43581"
+
+#
+# TODO: write the code to read this.
+#
+assignments = [{'canvas_essay_id': 279322,
+  'canvas_review_id': 279323,
+  'mechta_id': 2,
+  'name': 'Computers and Computation (Monday)',
+  'number': 1},
+ {'canvas_essay_id': 279324,
+  'canvas_review_id': 279325,
+  'mechta_id': 1,
+  'name': 'Computers and Computation (Wednesday)',
+  'number': 2},
+ {'canvas_essay_id': 279326,
+  'canvas_review_id': 279327,
+  'mechta_id': 3,
+  'name': 'Algorithms and Tractability (Monday)',
+  'number': 3},
+ {'canvas_essay_id': 279328,
+  'canvas_review_id': 279329,
+  'mechta_id': 4,
+  'name': 'Algorithms and Tractability (Wednesday)',
+  'number': 4},
+ {'canvas_essay_id': 279330,
+  'canvas_review_id': 279331,
+  'mechta_id': 5,
+  'name': 'Programming Languages and Compilers (Monday)',
+  'number': 5},
+ {'canvas_essay_id': 279332,
+  'canvas_review_id': 279333,
+  'mechta_id': 6,
+  'name': 'Programming Languages and Compilers (Wednesday)',
+  'number': 6},
+ {'canvas_essay_id': 279334,
+  'canvas_review_id': 279335,
+  'mechta_id': 7,
+  'name': 'Systems and Networks (Monday)',
+  'number': 7},
+ {'canvas_essay_id': 279336,
+  'canvas_review_id': 279337,
+  'mechta_id': 8,
+  'name': 'Systems and Networks (Wednesday)',
+  'number': 8},
+ {'canvas_essay_id': 279338,
+  'canvas_review_id': 279339,
+  'mechta_id': 9,
+  'name': 'Cryptography and Security (Monday)',
+  'number': 9},
+ {'canvas_essay_id': 279340,
+  'canvas_review_id': 279341,
+  'mechta_id': 10,
+  'name': 'Cryptography and Security (Wednesday)',
+  'number': 10},
+ {'canvas_essay_id': 279342,
+  'canvas_review_id': 279343,
+  'mechta_id': 11,
+  'name': 'Artificial Intelligence and Machine Learning (Monday)',
+  'number': 11},
+ {'canvas_essay_id': 279344,
+  'canvas_review_id': 279345,
+  'mechta_id': 12,
+  'name': 'Artificial Intelligence and Machine Learning (Wednesday)',
+  'number': 12},
+ {'canvas_essay_id': 279346,
+  'canvas_review_id': 279347,
+  'mechta_id': 13,
+  'name': 'Human Computer Interaction (Monday)',
+  'number': 13},
+ {'canvas_essay_id': 279348,
+  'canvas_review_id': 279349,
+  'mechta_id': 14,
+  'name': 'Human Computer Interaction (Wednesday)',
+  'number': 14},
+ {'canvas_essay_id': 279350,
+  'canvas_review_id': 279351,
+  'mechta_id': 15,
+  'name': 'Graphics and Vision (Monday)',
+  'number': 15},
+ {'canvas_essay_id': 279352,
+  'canvas_review_id': 279353,
+  'mechta_id': 16,
+  'name': 'Graphics and Vision (Wednesday)',
+  'number': 16},
+ {'canvas_essay_id': 279354,
+  'canvas_review_id': 279355,
+  'mechta_id': 17,
+  'name': 'Human Computation (Monday)',
+  'number': 17},
+ {'canvas_essay_id': 279356,
+  'canvas_review_id': 279357,
+  'mechta_id': 18,
+  'name': 'Human Computation (Wednesday)',
+  'number': 18},
+ {'canvas_essay_id': 279358,
+  'canvas_review_id': 279359,
+  'mechta_id': 19,
+  'name': 'Robotics (Monday)',
+  'number': 19},
+ {'canvas_essay_id': 279360,
+  'canvas_review_id': 279361,
+  'mechta_id': 20,
+  'name': 'Robotics (Wednesday)',
+  'number': 20}]
+
+def set_course(c):
+    course = c
+
+def set_access_token(token):
+    global ACCESS_TOKEN
+    global HEADERS
+    ACCESS_TOKEN = token
+    HEADERS = {"Authorization": "Bearer " + ACCESS_TOKEN}
 
 
 
@@ -44,6 +168,7 @@ def print_uri(uri,params):
 
     return "https://canvas.northwestern.edu" + re.sub(":(\w+)",match_func,uri)
 
+
 ##
 ## SET GRADE ON CANVAS
 ##
@@ -51,7 +176,12 @@ def canvas_set_grade(hw_id,user_id,grade):
     r = requests.put(print_uri("/api/v1/courses/:course_id/assignments/:assignment_id/submissions/:user_id",
                                {'course_id': course, 'assignment_id': hw_id, 'user_id': user_id}),
                      headers=HEADERS,params={'submission[posted_grade]':grade})
-    return
+    success = r.status_code == 200
+
+    if not success:
+        print "failed to set grade on submission " + str(hw_id) + " for student " + str(user_id) + " to " + str(grade)
+
+    return success
 
 
 
@@ -74,7 +204,7 @@ def canvas_set_grade(hw_id,user_id,grade):
 
 
 
-def get_students(course=course,accessor=accessor):
+def get_students(accessor,course=course):
     students = canvas_get_students(course)
     
     net_ids = [s['net_id'] for s in students]
@@ -98,8 +228,8 @@ def mechta_to_canvas_student_ids(students):
     mechta_to_canvas = {s['mechta_id']:s['canvas_id'] for s in students}
     return mechta_to_canvas
 
-def get_mechta_to_canvas_student_ids(course=course):
-    return mechta_to_canvas_student_ids(get_students(course))
+def get_mechta_to_canvas_student_ids(accessor,course=course):
+    return mechta_to_canvas_student_ids(get_students(accessor,course))
 
 def canvas_get_studentIDs(course=course):
     students = get_paginated(print_uri("/api/v1/courses/:course_id/students",
@@ -112,7 +242,7 @@ def canvas_get_studentIDs(course=course):
 def canvas_get_students(course=course):
     students = get_paginated(print_uri("/api/v1/courses/:course_id/students",
                                {'course_id': course}), HEADERS)
-
+    
     print (len(students))
     
     students = [{'net_id':s['login_id'],'canvas_id':s['id']} for s in students]
@@ -123,14 +253,14 @@ def canvas_get_students(course=course):
 ## CREATE & LIST ASSIGNMENTS and ASSIGNMENT GROUPS on CANVAS
 ##
 
-def canvas_get_assignment_groups(course=canvas_course):
+def canvas_get_assignment_groups(course=course):
     groups = get_paginated(print_uri("/api/v1/courses/:course_id/assignment_groups",
                                {'course_id': course}), HEADERS)
     return groups
 
 
 
-def canvas_new_assignment(name,assignment_group_id,position=None,published=False,course=canvas_course):
+def canvas_new_assignment(name,assignment_group_id,position=None,published=False,course=course):
     data = {'assignment':{
             'name':name,
             'assignment_group_id':assignment_group_id,
@@ -142,7 +272,7 @@ def canvas_new_assignment(name,assignment_group_id,position=None,published=False
     if position:
         data['assignment']['position'] = position
     
-    params = {'course_id':canvas_course}
+    params = {'course_id':course}
     
     r = requests.post(print_uri("/api/v1/courses/:course_id/assignments",params),headers=HEADERS,json=data)
     return r.json()['id']
@@ -150,7 +280,7 @@ def canvas_new_assignment(name,assignment_group_id,position=None,published=False
 
 
 
-def canvas_upload_grades(accessor,assignmentID,assignments,mechta_to_canvas,accessor=accessor):
+def canvas_upload_grades(accessor,assignmentID,assignments,mechta_to_canvas):
     
     # recalculate grades (since we cannot get them from mechta, no API for it)
     revgrades = accessor.get_peerreview_grades(assignmentID)
