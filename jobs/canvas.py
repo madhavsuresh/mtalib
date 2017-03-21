@@ -1,7 +1,7 @@
 import requests
 import re
 from ..algo.util import *
-
+import appeals
 
 ACCESS_TOKEN = "junk"
 HEADERS = {"Authorization": "Bearer " + ACCESS_TOKEN}
@@ -277,35 +277,70 @@ def canvas_new_assignment(name,assignment_group_id,position=None,published=False
     r = requests.post(print_uri("/api/v1/courses/:course_id/assignments",params),headers=HEADERS,json=data)
     return r.json()['id']
 
+def canvas_upload_submission_zero_grades(accessor,assignmentID,assignments,mechta_to_canvas):
 
+    submitters = accessor.peermatch_get_peer_ids(assignmentID)
 
-
-def canvas_upload_grades(accessor,assignmentID,assignments,mechta_to_canvas):
+    students = mechta_to_canvas.keys()
     
-    # recalculate grades (since we cannot get them from mechta, no API for it)
+    non_submitters = list(set(students) - set(submitters))
+
+    # dictionary to map to canvas assignment ids.
+    assn = [assn for assn in assignments if assn['mechta_id'] == assignmentID][0]    
+    # add essay grades grade
+    for i in non_submitters:
+        g = 5.0  # give non-submitters the no-appeal bonus.
+
+        canvas_uid = mechta_to_canvas[i]
+
+        print "setting essay grade on assignment " + str(assn['canvas_essay_id']) + " for student " + str(canvas_uid) + " to " + str(g)
+        canvas_set_grade(assn['canvas_essay_id'],canvas_uid,g)   
+  
+    
+
+
+def canvas_upload_submission_grades(accessor,assignmentID,assignments,mechta_to_canvas):
+
+    subgrades = accessor.get_submission_grades(assignmentID)
+    subgrades = [(d['studentID'],d['submissionID'],d['score']) for d in subgrades]
+
+    submitters = [i for (i,_,_) in subgrades]
+    students = mechta_to_canvas.keys()    
+    non_submitters = list(set(students) - set(submitters))
+    
+    # add zero grade for non-submitters to subgrades
+    subgrades += [(i,-1,0.0) for i in non_submitters]
+
+
+    appealed_submissions = appeals.get_appeal_submissions(accessor,assignmentID)
+    
+    # dictionary to map to canvas assignment ids.
+    assn = [assn for assn in assignments if assn['mechta_id'] == assignmentID][0]    
+    # add essay grades grade
+    for (i,j,g) in reversed(subgrades):
+        
+        if i in mechta_to_canvas:
+            no_appeal_boost = 5.0 if j not in appealed_submissions else 0.0
+
+            canvas_uid = mechta_to_canvas[i]
+            print "setting essay grade on assignment " + str(assn['canvas_essay_id']) + " for student " + str(canvas_uid) + " to " + str(g) + " + " + str(no_appeal_boost) 
+            canvas_set_grade(assn['canvas_essay_id'],canvas_uid,g+no_appeal_boost)   
+        else:
+            print "MechTA student " + str(i) + " is not in Canvas"
+
+
+def canvas_upload_review_grades(accessor,assignmentID,assignments,mechta_to_canvas):
+
     revgrades = accessor.get_peerreview_grades(assignmentID)
     
     # grade is the maximum review score.
     revgrades = tuples_to_kkv([(d['reviewerID'],d['submissionID'],d['score']) for d in revgrades])
     revgrades = [(i,max(jtog.values())) for i,jtog in revgrades.items()]
     
-    subgrades = accessor.get_submission_grades(assignmentID)
-    
-    subgrades = [(d['studentID'],d['score']) for d in subgrades]
-
     
     # dictionary to map to canvas assignment ids.
     assn = [assn for assn in assignments if assn['mechta_id'] == assignmentID][0]
     
-    # add essay grades grade
-    for (i,g) in subgrades:
-        if i in mechta_to_canvas:
-            canvas_uid = mechta_to_canvas[i]
-            print "setting essay grade on assignment " + str(assn['canvas_essay_id']) + " for student " + str(canvas_uid) + " to " + str(g)
-            canvas_set_grade(assn['canvas_essay_id'],canvas_uid,g)   
-        else:
-            print "MechTA student " + str(i) + " is not in Canvas"
-
     # add essay grades grade
     for (i,g) in revgrades:
         if i in mechta_to_canvas:
@@ -314,3 +349,9 @@ def canvas_upload_grades(accessor,assignmentID,assignments,mechta_to_canvas):
             canvas_set_grade(assn['canvas_review_id'],canvas_uid,g)   
         else:
             print "MechTA student " + str(i) + " is not in Canvas"
+
+
+def canvas_upload_grades(accessor,assignmentID,assignments,mechta_to_canvas):
+    canvas_upload_submission_grades(accessor,assignmentID,assignments,mechta_to_canvas)
+    canvas_upload_review_grades(accessor,assignmentID,assignments,mechta_to_canvas)
+    
