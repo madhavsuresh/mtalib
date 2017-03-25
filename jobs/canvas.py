@@ -11,7 +11,7 @@ HEADERS = {"Authorization": "Bearer " + ACCESS_TOKEN}
 ## DATA
 ##
 
-course = "43581"
+course = "53185"
 
 #
 # TODO: write the code to read this.
@@ -239,15 +239,59 @@ def canvas_get_studentIDs(course=course):
 
     return studentIDs
 
+
 def canvas_get_students(course=course):
     students = get_paginated(print_uri("/api/v1/courses/:course_id/students",
                                {'course_id': course}), HEADERS)
-    
+
     print (len(students))
     
     students = [{'net_id':s['login_id'],'canvas_id':s['id']} for s in students]
 
     return students
+
+def canvas_get_users(course=course,enrollment_type=None):
+    if enrollment_type:
+        params= {'enrollment_type':enrollment_type}
+    else:
+        params = {}
+    params['include[]'] = 'email'
+    students = get_paginated(print_uri("/api/v1/courses/:course_id/users",{'course_id': course}), HEADERS, params)
+
+    return students
+
+def canvas_user_to_mechta_user(c_user,user_type='student'):
+
+    (last,first) = c_user['sortable_name'].split(', ')
+
+    mta_user = {u'firstName': first,
+                u'lastName': last,
+                u'studentID': c_user['id'],
+                u'userType': user_type, # 'instructor'
+                u'username': c_user['sis_login_id']}
+
+    return mta_user
+
+#{u'id': 24983,
+#  u'integration_id': None,
+#  u'login_id': u'jma771',
+#  u'name': u'John Albers',
+#  u'short_name': u'John Albers',
+#  u'sis_login_id': u'jma771',
+#  u'sis_user_id': u'jma771',
+#  u'sortable_name': u'Albers, John'}
+
+def canvas_import_users_to_mechta(accessor,course=course):
+    c_students = canvas_get_users(course,enrollment_type='student')
+    c_instructors = canvas_get_users(course,enrollment_type='teacher') + canvas_get_users(course,enrollment_type='ta')
+
+    mta_students = [canvas_user_to_mechta_user(c_user,user_type='student') for c_user in c_students]
+    mta_instructors = [canvas_user_to_mechta_user(c_user,user_type='instructor') for c_user in c_instructors]
+
+    mta_users = mta_instructors + mta_students 
+
+    return accessor.create_users(list_of_users=mta_users)
+
 
 ##
 ## CREATE & LIST ASSIGNMENTS and ASSIGNMENT GROUPS on CANVAS

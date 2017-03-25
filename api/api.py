@@ -87,7 +87,7 @@ class server_accessor:
     if course_id == None:
         course_id = self.courseID
     create_data = {'courseID' : course_id, 'users' : list_of_users}
-    return requests.post(self.server_url + 'user/create', data = json.dumps(create_data))
+    return self.server_post('user/create', create_data)
 
   def update_users(self, list_of_users, course_id = None):
     """Accepts a courseID and a list of user dictionaries and updates the given users under that course"""
@@ -96,12 +96,12 @@ class server_accessor:
     update_data = {'courseID' : course_id, 'users' : list_of_users}
     return requests.post(self.server_url + 'user/update', data = json.dumps(update_data))
 
-  def delete_users(self, list_of_users, courseID = None):
+  def delete_users(self, users, courseID = None):
     """Accepts a courseID and a list of usernames and drops the given users under that course"""
     if courseID == None:
         courseID = self.courseID
-    delete_data = {'courseID' : courseID, 'users' : list_of_users}
-    return requests.post(self.server_url + 'user/delete', data = json.dumps(delete_data))
+    delete_data = {'courseID' : courseID, 'users' : users}
+    return self.server_post('user/delete', delete_data)
 
   def get_users(self, courseID = None, users=""):
     """Accepts a courseID and an optional list of usernames. Without the list of usernames this returns a list of users by username in the given course, with the optional list this returns more detailed info on each given username"""
@@ -111,7 +111,8 @@ class server_accessor:
     del data['self']
     if not users:
       del data['users']
-    return self.server_get('user/get',data).json()
+    r = self.server_get('user/get',data)
+    return r.json()
 
   def get_tas_from_course(self, courseID):
     params = {'courseID': courseID}
@@ -171,14 +172,20 @@ class server_accessor:
       self.add_day_offset(day_offset, defaults)
     return requests.post(self.server_url + 'assignment/update', data = json.dumps(assignment_params))
 
-  def get_assignment(self, assignmentIDs, courseID = None):
+  def get_assignment(self, assignmentIDs = None, courseID = None):
     """Takes a courseID and a list of assignmentIDs and returns the information of the given assignments"""
     if courseID == None:
         courseID = self.courseID
+    if not assignmentIDs:
+      assignmentIDs='all'
+
     assignment_params = locals()
     del assignment_params['self']
-    print assignment_params
-    return requests.get(self.server_url + 'assignment/get', data = json.dumps(assignment_params))
+    r = self.server_get('assignment/get', assignment_params)
+    assignments = r.json()
+    for a in assignments:
+      a['assignmentID'] = int(a['assignmentID']['id'])
+    return assignments
 
   def get_courseID_from_assignmentID(self, assignmentID):
     params = {'assignmentID': assignmentID}
@@ -623,24 +630,27 @@ class server_accessor:
 
 
   ################################ EVENTS ################################
-  def event_get(self, courseID, assignmentID=None):
-      if assignmentID:
-          params = {'courseID': courseID, 'assignmentID': assignmentID}
-      else:
-          params = {'courseID': courseID}
-      r = requests.get(self.server_url + 'event/get', data=json.dumps(params))
+  def event_get(self, courseID=None, assignmentID=None):
+      if courseID == None:
+        courseID = self.courseID
+      params = locals()
+      del params['self']
+      if not assignmentID:
+         del params['assignmentID']
+      r = self.server_get('event/get', params)
       json_response = ''
       try:
           json_response = json.loads(r.text)
       except Exception:
           print r.text
           raise
-      return json_response
+      return json_response['eventList']
 
-  def event_create(self, assignmentID, summary, details, success,job):
-      params = {'assignmentID': assignmentID,'summary': summary, 'details':
-                details, 'success': success, 'job': job}
-      r = requests.post(self.server_url + 'event/create',
-                        data=json.dumps(params))
-      return json.loads(r.text)
+  def event_create(self, assignmentID, job, success, summary, details,courseID=None):
+      if courseID is None:
+        courseID = self.courseID
+      params = locals()
+      del params['self']
+      r = self.server_post('event/create',params)
+      return r
 
