@@ -48,14 +48,17 @@ class server_accessor:
 
   ############################ COURSE ###########################
 
-  def create_course(self, name, displayName, authType='pdo', registrationType='Open', browsable=True):
+  def create_course(self, name, displayName, authType='pdo',
+                    registrationType='Open', browsable=True, gracePeriod=9000):
     """Creates a course with optional values. name and displayName are required parameters and name must be unique for call to not return error"""
     course_params = locals()
     # hacky and ugly, not particularly robust, look to change in future
     del course_params['self']
     return requests.post(self.server_url + 'course/create', data=json.dumps(course_params))
 
-  def update_course(self, courseID = None, name='', displayName='', authType='', registrationType='', browsable=''):
+  def update_course(self, courseID = None, name='', displayName='',
+                    authType='', registrationType='', browsable='',
+                    gracePeriod=9000):
     """Updates course specified by courseID with any additional optional parameters specified by user"""
     if courseID == None:
         courseID = self.courseID
