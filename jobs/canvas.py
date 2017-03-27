@@ -208,7 +208,11 @@ def get_students(accessor,course=course):
     students = canvas_get_students(course)
     
     net_ids = [s['net_id'] for s in students]
+
+    print "ERROR THIS CODE MUST BE FIXED BEFORE RUNNING"
+    print "get_users API changed"
     
+
     mechta_users = accessor.get_users(courseID=1,users=net_ids)
 
     mechta_ids = {u['username']:int(u['userID']['id']) for u in mechta_users}
