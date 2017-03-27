@@ -119,8 +119,8 @@ class server_accessor:
     r = self.server_get('user/get',data)
     return r.json()
 
-  def get_tas_from_course(self, courseID):
-    params = {'courseID': courseID}
+  def get_tas_from_course(self, courseID, markingLoad=0):
+    params = {'courseID': courseID, 'markingLoad': markingLoad}
     r = self.server_get('user/get_tas_from_courseid', params)
     return r.json()
 
