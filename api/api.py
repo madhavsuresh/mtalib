@@ -73,14 +73,14 @@ class server_accessor:
     delete_data = {'courseID' : courseID}
     return requests.post(self.server_url + 'course/delete', data=json.dumps(delete_data))
 
-  def get_course(self, courseID=""):
+  def get_course(self, courseID=None):
     """If a courseID is supplied this returns the information associated with that class, without a specified courseID this returns a list of courses with courseID, name, displayName and browsable values for each course"""
     get_data = {}
     if courseID:
       get_data['courseID'] = courseID
-    return requests.get(self.server_url + 'course/get', data=json.dumps(get_data))
+    return self.server_get('course/get',get_data).json()
 
-  ############################ USERS ###########################
+  ############################ Users ###########################
 
   def create_users(self, list_of_users, course_id = None):
     """Accepts a courseID and a list of user dictionaries and creates the given users under that course"""
@@ -103,7 +103,7 @@ class server_accessor:
     delete_data = {'courseID' : courseID, 'users' : users}
     return self.server_post('user/delete', delete_data)
 
-  def get_users(self, courseID = None, users=""):
+  def get_users(self, courseID = None, users=None):
     """Accepts a courseID and an optional list of usernames. Without the list of usernames this returns a list of users by username in the given course, with the optional list this returns more detailed info on each given username"""
     if courseID == None:
         courseID = self.courseID
@@ -112,7 +112,17 @@ class server_accessor:
     if not users:
       del data['users']
     r = self.server_get('user/get',data)
-    return r.json()
+    if not users: # return a list of all userIDs.
+      return [int(s['id']) for s in r.json()] 
+    else:         # return list of dicts for each userID listed in 'users'
+      dicts = r.json()
+      for s in dicts:
+        s['userID'] = int(s['userID']['id']) 
+      return dicts
+
+  def get_all_users(self,courseID=None):
+    return self.get_users(courseID,users=self.get_users(courseID))
+    
 
   def get_tas_from_course(self, courseID):
     params = {'courseID': courseID}
