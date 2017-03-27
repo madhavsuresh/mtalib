@@ -49,7 +49,7 @@ class server_accessor:
   ############################ COURSE ###########################
 
   def create_course(self, name, displayName, authType='pdo',
-                    registrationType='Open', browsable=True, gracePeriod=9000):
+                    registrationType='Open', browsable=True, gracePeriod=15):
     """Creates a course with optional values. name and displayName are required parameters and name must be unique for call to not return error"""
     course_params = locals()
     # hacky and ugly, not particularly robust, look to change in future
@@ -58,8 +58,9 @@ class server_accessor:
 
   def update_course(self, courseID = None, name='', displayName='',
                     authType='', registrationType='', browsable='',
-                    gracePeriod=9000):
+                    gracePeriod=None):
     """Updates course specified by courseID with any additional optional parameters specified by user"""
+    """Grace period is in minutes"""
     if courseID == None:
         courseID = self.courseID
     params = locals()
@@ -81,7 +82,8 @@ class server_accessor:
     get_data = {}
     if courseID:
       get_data['courseID'] = courseID
-    return requests.get(self.server_url + 'course/get', data=json.dumps(get_data))
+    x = self.server_get('course/get', get_data)
+    return x.json()
 
   ############################ USERS ###########################
 
@@ -656,4 +658,18 @@ class server_accessor:
       del params['self']
       r = self.server_post('event/create',params)
       return r
+
+
+  ################################ PARTNER ################################
+  def partner_get(self, assignmentID):
+      params = {'assignmentID': assignmentID}
+      r = self.server_get('partner/get', params)
+      return r.json()
+  def partner_get_unpacked(self, assignmentID):
+     partners = self.partner_get(assignmentID)
+     return_list = []
+     for p in partners['partnerPairAndSubmissionList']:
+         return_list.append({'submissionID': p['submissionID'],
+                             'peers':[p['peerOwnerID'], p['peerPartnerID']]})
+     return return_list
 
