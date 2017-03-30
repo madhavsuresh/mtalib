@@ -458,21 +458,25 @@ class server_accessor:
     else:
         return r
 
-
   def peermatch_get_peer_ids(self, assignmentID):
-    params = {'assignmentID': assignmentID}
-    r = self.server_get('peermatch/get_peer_ids', params)
-    return r.json()['peerList']
+    students = get_student_and_submission_ids(assignmentID)
+    return [i for (i,_) in students]
 
   def peermatch_get_submission_ids(self, assignmentID):
-    params = {'assignmentID': assignmentID}
-    r = self.server_get('peermatch/get_submission_ids',params)
-    return r.json()['submissionList']
+    students = get_submitter_and_submission_ids(assignmentID)
+    return [j for (_,j) in students]
 
-
-  def get_student_and_submission_ids(self, assignmentID):
+  def get_submitter_and_submission_ids(self, assignmentID):
     data = self.peermatch_get_peer_and_submission_ids(assignmentID)['peerSubmissionPairs']
     return [(d['peerID'],d['submissionID']) for d in data]
+
+  def get_student_and_submission_ids(self, assignmentID):
+    submitters = self.get_submitter_and_submission_ids(assignmendID)
+    partners = self.get_partner_and_submission_ids(assignmentID)
+
+    return submitters+partners
+
+  
 
   # BADLY NAMED!  Gets *student* and submission)
   # use wrapper above instead!!
@@ -676,6 +680,7 @@ class server_accessor:
       params = {'assignmentID': assignmentID}
       r = self.server_get('partner/get', params)
       return r.json()
+
   def partner_get_unpacked(self, assignmentID):
      partners = self.partner_get(assignmentID)
      return_list = []
@@ -684,3 +689,8 @@ class server_accessor:
                              'peers':[p['peerOwnerID'], p['peerPartnerID']]})
      return return_list
 
+  def get_partner_and_submission_ids(self,assignmentiD):
+      params = {'assignmentID': assignmentID}
+      r = self.server_get('partner/get', params)
+      return [(d['peerPartnerID'],d['submissionID']) for d in r.json()]
+    

@@ -11,7 +11,6 @@ logger = logging.getLogger()
 c = config.api_server
 
 
-exclude_from_automatic_ta_assignment = [284,282]
 
 
 def get_excludes(accessor,assignmentID):

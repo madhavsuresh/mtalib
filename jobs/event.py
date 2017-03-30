@@ -18,6 +18,22 @@ import logging
 
 #     return 1
 
+datehooks = []
+
+datahook_keys = ['job','summary','event','delay','grace','execute','params']
+
+def add_datehook(job,summary,event,execute,params={},grace=False,delay=0):
+    datehooks.append(locals())
+
+calibration_start = 'calibrationStartDate'
+mark_post = 'markPostDate'
+review_start = 'reviewStartDate'
+calibration_stop = 'calibrationStopDate'
+review_stop = 'reviewStopDate'
+submission_start = 'submissionStartDate'
+appeal_stop = 'appealStopDate'
+submission_stop = 'submissionStopDate'
+
 
 # datehooks = [{'job':'peermatch',
 #               'summary':'Executed Peer Match for Assignment {assignmentID}',
@@ -98,11 +114,12 @@ def run(accessor):
         # EXECUTE JOB FOR PENDING ASSIGMNENTS
         #
         execute = datehook['execute']
+        params = datehook['params']
 
         for assignmentID in sorted(pending):
             
             # EXECUTE
-            (success,details) = capture_log(lambda:execute(accessor,assignmentID))
+            (success,details) = capture_log(lambda:execute(accessor,assignmentID,**params))
             
             # ADD EVENT TO LOG
             eventlog = {'job':job,
