@@ -86,6 +86,7 @@ class server_accessor:
     return x.json()
 
 
+
   ############################ Users ###########################
 
   def create_users(self, list_of_users, course_id = None):
@@ -476,7 +477,6 @@ class server_accessor:
 
     return submitters+partners
 
-  
 
   # BADLY NAMED!  Gets *student* and submission)
   # use wrapper above instead!!
