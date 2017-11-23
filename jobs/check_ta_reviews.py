@@ -4,8 +4,8 @@ from ..api.api import *
 from ..algo.util import *
 from . import cover
 from . import match
-from . import email
 from . import canvas
+from . import email
 
 from mtalib.jobs import grading
 from numbers import Number
@@ -17,20 +17,26 @@ from copy import deepcopy
 import logging
 logger = logging.getLogger()
 
-job_name = 'patch_reviews'
-job_summary = 'Patch reviews for insufficiently reviewed submissions'
+
+job_name = 'check_ta_reviews'
+job_summary = 'Check that TA reviews are in and system is ready for grading algorithms to be run'
 
 
-default_params = {'required_reviews': 2,
-                  'tas':None}
+date_format = "%I:%M %p, %A, %B %d"
+
+subject = "TA reviews for '%(assignment_name)s' are past due!"
+
+message="""
+You have %(missing_reviews)d required TA reviews for assignment '%(assignment_name)s' that are past due.  Please go to Mechanical TA to enter these reviews immediately.  
+"""
 
 
+default_params = {}
 
 def run(accessor,assignmentID,courseID=None,**params):
 
     if not courseID:
         courseID = accessor.get_courseID(assignmentID)
-
 
     # get parameters.
     d_params = deepcopy(default_params)
@@ -39,41 +45,13 @@ def run(accessor,assignmentID,courseID=None,**params):
     d_params.update(a_params)
     params = d_params
 
-    tas = params['tas']
-    required_reviews=params['required_reviews']
-    if not tas:
-        tas = accessor.get_tas_from_course(courseID=courseID,markingLoad=1)
-
 
     # welcome message
-    logger.info("Executing patch reviews with TAs %s and %d required reviews.",str(tas),required_reviews) 
-
-    
-    # patch reviews
-    (success,_,_) = patch_insufficiently_reviewed(accessor, assignmentID, courseID=courseID,required=required_reviews,tas=tas)    
-
-    if not email_tas_about_match(accessor,assignmentID,tas=tas,courseID=courseID):
-        logger.warn("failed to email TAs %s about reviews for assignment %d",tas,assignmentID) 
+    logger.info("Executing %s.",job_name) 
 
 
-    return success
-
-
-
-
-def email_tas_about_match(accessor,assignmentID,tas,courseID=None):
-
-    date_format = "%I:%M %p, %A, %B %d"
-
-    subject = "TA reviews for '%(assignment_name)s' are assigned"
-
-    message="""
-The peer reviews for assignment '%(assignment_name)s' are now closed.  You have %(missing_reviews)d required TA reviews.  Please go to Mechanical TA to enter these reviews.  Grades are posted at %(mark_post_date)s; please be sure your TA reviews are entered well in advance of that date.
-"""
     def date(utc):
         return time.strftime(date_format,time.localtime(int(utc)))
-
-    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
 
 
     missing = grading.missing_truths_from_accessor(accessor,assignmentID=assignmentID,courseID=courseID)
@@ -81,6 +59,7 @@ The peer reviews for assignment '%(assignment_name)s' are now closed.  You have 
         logger.info("no outstanding TA reviews, no emails sent")
         return True
 
+    tas = missing.keys()
 
     # get assignment name
     assn = accessor.get_assignment(assignmentIDs = [assignmentID],courseID=courseID)
@@ -102,24 +81,21 @@ The peer reviews for assignment '%(assignment_name)s' are now closed.  You have 
 
     addresses = canvas.get_emails(accessor,courseID=courseID)
 
-
-
     success = False
 
     for ta in tas:
 
-        if ta not in missing:
-            continue
-
         params['missing_reviews'] = len(missing[ta])
 
         if ta in addresses:
-            success = email.send(addresses[ta],subject % params, message % params)
-    
+            success = email.send(addresses[ta],subject % params, message % params)    
         else:
             logger.warn("no email address found for TA %d, cannot send email.",ta)
- 
-    return success
+
+    if not success:
+        logger.warn("Failed to send some emails.  Contact TAs manually.")
+
+    return False
 
 
 

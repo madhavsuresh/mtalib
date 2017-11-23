@@ -2,6 +2,12 @@ from mtalib.api import api
 from mtalib.algo.util import *
 from pprint import pprint
 
+import logging
+logger = logging.getLogger()
+
+
+
+
 def rubric_questions(accessor,assignmentID):
     r = accessor.get_rubric(assignmentID)
 
@@ -88,24 +94,13 @@ def create_rubric_question(accessor,assignmentID,courseID=None,defaults=rubric_q
     return accessor.create_rubric_question(assignmentID,courseID=courseID,defaults=defaults,**kwargs)
 
 
-
-
-# FORMAT FOR 'text':
-# """POINTS:  QUESTION NAME 1: QUESTION DESCRIPTION 1
-#    POINTS: QUESTION NAME 2: QUESTION DESCIPTION 2
-#    ...
-#    POINTS: QUESTION NAME K: QUESTION DESCIPTION K"""
-# Notes:
-#    - there is no API to delete rubric quesstions, 
-#      so they must be manually deleted first.
-#      (this raises an exception if existing rubric is longer then update)
-def update_rubric(accessor,assignmentID,text):
+def update_rubric(accessor,assignmentID,text,append_text=""):
     
     questions = text.strip().split("\n")
 
     wnqs = [nq.split(":",2) for nq in questions]
 
-    wnqs = [(int(w.strip()),n.strip(),q.strip()) for (w,n,q) in wnqs]
+    wnqs = [(float(w.strip()),n.strip(),q.strip() + append_text) for (w,n,q) in wnqs]
 
     print "total points: " + str(sum([w for (w,_,_) in wnqs]))
 
@@ -136,10 +131,10 @@ def update_rubric(accessor,assignmentID,text):
         accessor.update_rubric_question(assignmentID=assignmentID,questionID=q,**update[q])
 
 
-    feedback_q = [q for q,r in rubric.items() if r['name'] == 'Feedback'][0]
-    justification_q = [q for q,r in rubric.items() if r['name'] == 'Justification'][0]
+    feedback_qs = [q for q,r in rubric.items() if r['name'] == 'Feedback']
+    justification_qs = [q for q,r in rubric.items() if r['name'] == 'Justification']
 
-    ordered_qs = [feedback_q] + score_qs + [justification_q]
+    ordered_qs =  score_qs + feedback_qs + justification_qs
     print "setting order: " + str(ordered_qs)
     rubric_set_order(accessor,assignmentID,ordered_qs)
 
@@ -153,3 +148,5 @@ def update_rubric_options(accessor,assignmentID):
         if 'options' in r:
             print "updating question: " + r['name']
             accessor.update_rubric_question(assignmentID=assignmentID,questionID=q,options=rubric_question_defaults['options'])
+
+

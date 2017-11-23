@@ -2,9 +2,9 @@ from __future__ import division
 from ..algo.util import *
 from ..algo.peer_assignment import *
 from grading import *
-import peermatchflow as match
+from . import match
 from math import sqrt
-from peermatchflow import insert_ta_matches_from_accessor
+from match import insert_ta_matches_from_accessor
 
 
 ####
@@ -76,9 +76,11 @@ def insert_ta_matches_for_insufficiently_reviewed(accessor,assignmentID,courseID
     return subs
 
 
-def check_cover_from_accessor(accessor, assignmentID):
+def check_cover_from_accessor(accessor, assignmentID,courseID=None):
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
     matches = match.mechta_matching_to_matching(accessor.peermatch_get(assignmentID))
-    courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
+
     tas = tas_from_accessor(accessor,courseID)
 
     cover = [j for (i,j) in matches if i in tas]
@@ -118,10 +120,10 @@ def ensure_cover_from_accessor(accessor, assignmentID, courseID = None,priority=
 
 
 def get_cover_from_accessor(accessor,assignmentID):
-    courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
+    courseID = accessor.get_courseID(assignmentID)
   
     matching = match.mechta_matching_to_matching(accessor.peermatch_get(assignmentID))
-    tas = accessor.get_tas_from_course(courseID)['taIDs']
+    tas = accessor.get_tas_from_course(courseID)
 
     return [j for (i,j) in matching if i in tas]
     

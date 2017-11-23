@@ -1,21 +1,102 @@
-from ..api.api import *
-from ..algo.review_grades import review_grade,review_grades,NonScore,quadratic_loss,linear_loss, peer_grades
+from ..api import api
+from ..algo import review_grades 
+
+import requests
+from copy import deepcopy
+
 from ..algo.vancouver import *
 from ..algo.util import *
 from numbers import Number
 from ..algo.peer_assignment import cover_check
 
+import operator
+
+
 import logging
-logger = logging.getLogger('mtalib.jobs.grading')
+#logger = logging.getLogger('mtalib.jobs.grading')
+logger = logging.getLogger()
 
 
+job_name = 'grading'
+job_summary = 'Grade submissions and peer reviews'
 
+default_params = {'submission_bonus': 5.0,
+                  'peerreview_average': 85.0,
+                  'scoring_rule':'linear'}
 
 def mixed_loss(truth,score):
-    return .5 * quadratic_loss(truth,score) + .5 * linear_loss(truth,score)
+    return .5 * review_grades.quadratic_loss(truth,score) + .5 * review_grades.linear_loss(truth,score)
 
 
-def mechta_reviews_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:NonScore.NO_ANSWER,'Skip':NonScore.SKIP}):
+loss_function = {'linear':review_grades.linear_loss,
+                 'quadratic':review_grades.quadratic_loss,
+                 'mixed':mixed_loss}
+
+default_loss = review_grades.linear_loss
+
+
+def run(accessor,assignmentID,courseID=None,**params):
+
+    if not courseID:
+        courseID = accessor.get_courseID(assignmentID)
+
+    # get parameters.
+    d_params = deepcopy(default_params)
+    d_params.update(params)
+    a_params = accessor.get_assignment_params(assignmentID,courseID=courseID)
+    d_params.update(a_params)
+    params = d_params
+
+    submission_bonus = params['submission_bonus']
+    peerreview_average=params['peerreview_average']
+    loss = loss_function[params['scoring_rule']]
+
+    missing = missing_truths_from_accessor(accessor,assignmentID=assignmentID,courseID=courseID)
+
+    if missing:
+        logger.warn("Some TA grades are missing for assignment %d.")
+        ta_records = key_on(accessor.get_users(courseID,users=missing.keys()),'userID')
+        for ta in missing.keys():
+            logger.warn("Grader %s has %d missing reviews.",ta_records[ta]['firstName'],len(missing[ta]))
+ 
+        return False
+    
+
+    return run_submission(accessor,assignmentID,courseID=courseID,bonus=submission_bonus) \
+        and run_peerreview(accessor,assignmentID,courseID=courseID,average=peerreview_average,loss=loss)
+
+def run_submission(accessor,assignmentID,courseID=None,bonus=0.0):
+    if courseID == None:
+        courseID = accessor.get_courseID(assignmentID)
+
+
+    logger.info("Executing submission grading, bonus=%f.",bonus)    
+
+    r = execute_submission_grading(accessor,assignmentID,bonus=bonus,mode=api.REPLACE_GRADE,courseID=courseID)
+
+
+    return r.status_code == requests.codes.ok
+
+
+def run_peerreview(accessor,assignmentID,courseID=None,average=None,loss=default_loss):
+    if courseID == None:
+        courseID = accessor.get_courseID(assignmentID)
+
+
+    if average:
+        logger.info("Executing peerreview grading, average=%d.",average)    
+    else:
+        logger.info("Executing peerreview grading.",average)    
+
+    r = execute_peerreview_grading(accessor,assignmentID,average=average,mode=api.REPLACE_GRADE,loss=loss,courseID=courseID)
+
+    return r.status_code == requests.codes.ok
+
+
+
+
+
+def mechta_reviews_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:review_grades.NO_ANSWER,'Skip':review_grades.SKIP}):
 
     return accessor.get_peerreview_scores(assignmentID, courseID, rewrites)
 
@@ -27,7 +108,7 @@ def mechta_reviews_from_accessor(accessor,assignmentID,courseID=None,rewrites={N
 #    - s: score.
 #
 def mechta_reviews_to_reviews(mechta_reviews,peer_key='reviewerID'):
-    tuples = [(review[peer_key]['id'],(j,q),response['score']) 
+    tuples = [(review[peer_key],(j,q),response['score']) 
                  for j,reviews in mechta_reviews.items()
                  for review in reviews
                  for q,response in review['answers'].items() if 'score' in response]
@@ -35,7 +116,7 @@ def mechta_reviews_to_reviews(mechta_reviews,peer_key='reviewerID'):
 
 # gives [(i,j,match_id),...]
 def mechta_reviews_to_matchids(mechta_reviews,id_key='matchID'):
-    tuples = [(review['reviewerID']['id'],j,review[id_key]['id']) 
+    tuples = [(review['reviewerID'],j,review[id_key]) 
                  for j,reviews in mechta_reviews.items()
                  for review in reviews]
     return tuples
@@ -46,7 +127,7 @@ def mechta_reviews_to_matchids(mechta_reviews,id_key='matchID'):
  
 
 
-def reviews_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:NonScore.NO_ANSWER,'Skip':NonScore.SKIP},peer_key='reviewerID'):
+def reviews_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:review_grades.NO_ANSWER,'Skip':review_grades.SKIP},peer_key='reviewerID'):
     
     return mechta_reviews_to_reviews(mechta_reviews_from_accessor(accessor,assignmentID,courseID,rewrites),peer_key)
 
@@ -54,10 +135,12 @@ def tas_from_accessor(accessor,courseID=None):
     if not courseID:
         courseID = accessor.courseID
 
-    return accessor.get_tas_from_course(courseID)['taIDs']
+    return accessor.get_tas_from_course(courseID)
 
-def truths_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:NonScore.NO_ANSWER,'Skip':NonScore.SKIP},peer_key='reviewerID'):
+def truths_from_accessor(accessor,assignmentID,courseID=None,rewrites={None:review_grades.NO_ANSWER,'Skip':review_grades.SKIP},peer_key='reviewerID'):
     reviews = reviews_from_accessor(accessor,assignmentID,courseID=courseID,rewrites=rewrites)
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
     tas = tas_from_accessor(accessor,courseID=courseID)
 
     return truths_from_reviews(reviews,tas)
@@ -137,8 +220,8 @@ def reviews_to_submissions(reviews):
 #    reviews: {i:{jq:s,...},...}
 #    truths: {js:s,...}
 #
-#    note: if all TA scores for a submission are NonScore.NO_ANSWER 
-#          then NonScore.NO_ANSWER is the score returned.
+#    note: if all TA scores for a submission are review_grades.NO_ANSWER 
+#          then review_grades.NO_ANSWER is the score returned.
 def truths_from_reviews(reviews,tas):
     tuples = ensure_tuples(reviews)
     
@@ -152,7 +235,7 @@ def truths_from_reviews(reviews,tas):
 
     def avg_scores(scores):
         numeric_scores = [s for s in scores if isinstance(s,Number)]
-        return avg(numeric_scores) if numeric_scores else NonScore.NO_ANSWER
+        return avg(numeric_scores) if numeric_scores else review_grades.NO_ANSWER
 
     ta_kkv = tuples_to_kkv([(j,i,s) for (i,j,s) in ta_tuples])
     truths = {j:avg_scores(itos.values()) for j,itos in ta_kkv.items()}
@@ -173,8 +256,8 @@ def reviews_filter_peers(reviews,tas):
 
 
 def grading_errors(accessor,assignmentID,courseID=None,t=10):
-    if courseID == None:
-        courseID = accessor.courseID
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
 
     reviews = reviews_from_accessor(accessor,assignmentID, courseID)
     tas = tas_from_accessor(accessor,courseID)
@@ -199,17 +282,27 @@ def grading_errors(accessor,assignmentID,courseID=None,t=10):
 
     return (graded,ungraded)
 
+
 #
 # returns: {submission: grade, ...}
 #
+
 def grade_assignment(accessor, assignmentID, courseID = None,t=10):
 
-    if courseID == None:
-        courseID = accessor.courseID
-    
-    reviews = reviews_from_accessor(accessor,assignmentID, courseID)
-    tas = tas_from_accessor(accessor,courseID)
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
+
+    grades = grade_assignment_per_rubric(accessor,assignmentID,courseID,t)
     weights = accessor.get_rubric_weights(assignmentID)
+    return weighted_average_across_questions(grades,weights)
+
+def grade_assignment_per_rubric(accessor, assignmentID, courseID = None,t=10):
+
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+    
+    reviews = reviews_from_accessor(accessor,assignmentID=assignmentID,courseID=courseID)
+    tas = tas_from_accessor(accessor,courseID)
+
     
     # pull out and flatten the TA reviews.
     truths = truths_from_reviews(reviews,tas)
@@ -221,7 +314,7 @@ def grade_assignment(accessor, assignmentID, courseID = None,t=10):
     # reweight grades across rubric and sum.
     ###
     
-    return weighted_average_across_questions(grades,weights)
+    return grades
 
 
 # WEIGHTED_AVERAGE_ACROSS_QUESTIONS
@@ -231,18 +324,29 @@ def grade_assignment(accessor, assignmentID, courseID = None,t=10):
 # Output:
 #    summed: {j:weighted_grade,...}
 def weighted_average_across_questions(grades,weights):
-    total_weight = sum(weights)
+
+    def prod(lst):
+        return reduce(operator.mul,lst,1)
+
+    # if weight is tiny, then use score multiplicatively.
+    multiplier1 = {(j,score) for ((j,q),score) in grades.items() if weights[q] <= .001}
+    multiplier2 = ensure_kvs(multiplier1)
+    multiplier = {j:prod(scores) for j,scores in multiplier2.items()}
 
     weighted = {(j,q,score*weights[q]) for ((j,q),score) in grades.items()}
     # convert to kkv:              {j:{q:weighted_score,...},...}
     kkv = tuples_to_kkv(weighted)
     # sum weighted scores:     {j:weighted_average_scores,...}
+ 
     summed = {j:round(sum(qtos.values()),2) for j,qtos in kkv.items()}
     
-    return summed
+    
+    multiplied = {j:s*multiplier[j] for (j,s) in summed.items()} if multiplier else summed
+
+    return multiplied
 
 
-def grade_reviews_from_accessor(accessor, assignmentID, skip_loss,loss=quadratic_loss, courseID = None):
+def grade_reviews_from_accessor(accessor, assignmentID, skip_loss, loss=default_loss, average=None, courseID = None):
 
     ### BASIC ALGORITHM:
     ###   1. grade each rubric question separately.
@@ -263,7 +367,7 @@ def grade_reviews_from_accessor(accessor, assignmentID, skip_loss,loss=quadratic
     truths = truths_from_reviews(reviews,tas)
 
    
-    return grade_reviews(peer_reviews,truths,rubric_weights,skip_loss,loss)
+    return grade_reviews(peer_reviews,truths,rubric_weights,skip_loss,loss,average)
 
 # GRADE_PEERS
 # Input:
@@ -283,7 +387,7 @@ def grade_peers(reviews,truths,weights,skip_loss,loss=mixed_loss):
     qtruths = {q:{j:s for (j,qq),s in truths.items() if qq == q} for q in questions}
     
     # qig_grades: {q:{i:g,...},...}
-    qig_grades = {q:peer_grades(qreviews[q],qtruths[q],skip_loss,loss) for q in questions}
+    qig_grades = {q:review_grades.peer_grades(qreviews[q],qtruths[q],skip_loss,loss) for q in questions}
     
     # indiv_grades: {i:{q:g,...},...}
     iqg_grades = kkv_invert(qig_grades)
@@ -305,14 +409,19 @@ def grade_peers(reviews,truths,weights,skip_loss,loss=mixed_loss):
 #   skip_loss = grade for skip.
 # Output:
 #   grades: {i:{j:grade,...},...}
-def grade_reviews(reviews,truths,weights,skip_loss,loss=mixed_loss):
+def grade_reviews(reviews,truths,weights,skip_loss,loss=mixed_loss,average=None,question_average=None):
+
+    if question_average:
+        logger.info("Grading Reviews with per-rubric question average boosted to %f",question_average)
+
     reviews = ensure_tuples(reviews)
     
     questions = weights.keys()
-    
+
     # remove ungraded submissions from truths.
     ungraded = list(set([j for (j,q),g in truths.items() if not isinstance(g,Number)]))
-    logger.warn("ungraded submissions: %s",ungraded)
+    if ungraded:
+        logger.warn("ungraded submissions: %s",ungraded)
     truths = {j:g for j,g in truths.items() if isinstance(g,Number)}
 
     # grade each rubric question
@@ -320,7 +429,7 @@ def grade_reviews(reviews,truths,weights,skip_loss,loss=mixed_loss):
     qtruths = {q:{j:s for (j,qq),s in truths.items() if qq == q} for q in questions}
     
     # qijg: {q:{i:{j:g,...},...},...}
-    qijg = {q:review_grades(qreviews[q],qtruths[q],skip_loss,loss) for q in questions}
+    qijg = {q:review_grades.review_grades(qreviews[q],qtruths[q],skip_loss,loss,question_average) for q in questions}
 
 
     
@@ -340,8 +449,22 @@ def grade_reviews(reviews,truths,weights,skip_loss,loss=mixed_loss):
 
     pairs = kg.items()
 
+    grades = [(i,j,g) for ((i,j),g) in pairs]
 
-    return tuples_to_kkv([(i,j,g) for ((i,j),g) in pairs])
+    # raise grades up so that average is 'average'
+    if average:
+        total = sum(weights.values())
+
+        jtoigs = ensure_kvs([(j,(i,g)) for (i,j,g) in grades])
+        
+        avgs = {j:avg([g for (_,g) in igs]) for j,igs in jtoigs.items()}
+
+        def raise_avg(g,avg):
+            return (total-(total-g)/(total-avg)*(total-average)) if avg < average else g
+
+        grades = [(i,j,raise_avg(g,avgs[j])) for (i,j,g) in grades]
+
+    return tuples_to_kkv(grades)
 
     
     
@@ -439,11 +562,33 @@ def run_vancouver(reviews,truths,t=10):
 
 
 
-def execute_submission_grading(accessor,assignmentID):
-    subgrades = grade_assignment(accessor,assignmentID=assignmentID,courseID=1)
-    r = accessor.set_grades(assignmentID=assignmentID,grades=[(int(j),round(g,1)) for j,g in subgrades.items()])
+def execute_submission_grading(accessor,assignmentID,courseID=None,bonus=0.0,mode=api.REPLACE_GRADE):
+    
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
+    subgrades = grade_assignment(accessor,assignmentID=assignmentID,courseID=courseID)
+
+    logger.info("setting %d submission grades",len(subgrades))
+
+
+    r = accessor.set_submission_grades(assignmentID=assignmentID,
+                                       courseID=courseID,
+                                       grades=[{'submissionID':int(j),
+                                                'grade':round(g + bonus,1)} 
+                                               for j,g in subgrades.items()],
+                                       mode=mode)
     return r
 
+# [(j,g),...] => [{'submissionID':j,'grade':g},...]
+#    or
+# {j:g,...} => [{'submissionID':j,'grade':g},...]
+
+def prepare_submission_grades(grades):
+    if isinstance(grades,dict):
+        grades = grades.items()
+
+    return [{'submissionID':int(j),
+             'grade':round(g,1)} for j,g in grades]
 
 # returns list of peers with no review grade.
 def ungraded_peers(accessor,assignmentID):
@@ -462,9 +607,16 @@ def ungraded_peers(accessor,assignmentID):
     return counts
 
 
-def execute_peerreview_grading(accessor,assignmentID):
-    revgrades = grade_reviews_from_accessor(accessor, assignmentID=assignmentID, skip_loss=0.5,loss=mixed_loss)
-    mta_reviews = mechta_reviews_from_accessor(accessor,assignmentID=assignmentID)
+
+def execute_peerreview_grading(accessor,assignmentID,courseID=None,average=None,mode=api.REPLACE_GRADE,loss=default_loss):
+
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
+
+    revgrades = grade_reviews_from_accessor(accessor, assignmentID=assignmentID,courseID=courseID, skip_loss=0.5,loss=loss,average=average)
+
+
+    mta_reviews = mechta_reviews_from_accessor(accessor,courseID=courseID,assignmentID=assignmentID)
     matchids = mechta_reviews_to_matchids(mta_reviews)
 
 
@@ -473,11 +625,46 @@ def execute_peerreview_grading(accessor,assignmentID):
 
     # mgs: [(matchID,grade),...]
     mgs = [(ij2m[ij],ij2g[ij]) for ij in ij2g.keys()]
+
+
     mechta_match_grades = [{'matchID':int(m),'grade':round(g,1)} for m,g in mgs]
-    r = accessor.set_review_grade_bulk(mechta_match_grades)
+
+    logger.info("setting %d peerreview grades",len(mechta_match_grades))
+
+    r = accessor.set_review_grades(assignmentID,mechta_match_grades,mode=mode,courseID=courseID)
     return r
 
 
-def execute(accessor,assignmentID):
-    execute_peerreview_grading(accessor,assignmentID)
-    execute_submission_grading(accessor,assignmentID)
+def execute(accessor,assignmentID,courseID=None):
+    execute_peerreview_grading(accessor,assignmentID,courseID=courseID)
+    execute_submission_grading(accessor,assignmentID,courseID=courseID)
+
+
+def get_review_grades(accessor,assignmentID,courseID=None):
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
+    
+    revgrades = accessor.get_peerreview_grades(assignmentID,courseID=courseID)
+    
+    # grade is the maximum review score.
+    revgrades = tuples_to_kkv([(d['reviewerID'],d['submissionID'],d['grade']) for d in revgrades])
+    revgrades = [(i,max(jtog.values())) for i,jtog in revgrades.items()]
+    
+    return revgrades
+
+
+def get_submission_grades(accessor,assignmentID,courseID=None,bonus=0.0):
+    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
+
+    
+
+    subgrades = accessor.get_submission_grades(assignmentID,courseID=courseID)
+    subgrades = [(d['studentID'],d['grade']) for d in subgrades]
+
+    submitters = [i for (i,_) in subgrades]
+    students = accessor.get_students(courseID=courseID)
+    non_submitters = list(set(students) - set(submitters))
+    
+    subgrades += [(i,bonus) for i in non_submitters]
+
+    return subgrades

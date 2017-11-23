@@ -5,6 +5,7 @@ import StringIO
 from ..api.api import server_accessor
 import logging
 
+logger = logging.getLogger()
 
 # def job_assign_peer_reviews(accessor,hw):
     
@@ -34,6 +35,9 @@ submission_start = 'submissionStartDate'
 appeal_stop = 'appealStopDate'
 submission_stop = 'submissionStopDate'
 
+def run_noop(accessor,assignmentID,**params):
+    logger.info("Job not executed.  Run manually.")
+    return True
 
 # datehooks = [{'job':'peermatch',
 #               'summary':'Executed Peer Match for Assignment {assignmentID}',
@@ -53,22 +57,27 @@ submission_stop = 'submissionStopDate'
 
 delay_multiplier_to_seconds = 60
 
-def log_event(accessor,**eventlog):
-    logger.info("EVENT CREATED")
-    logger.info(eventlog)
-    accessor.event_create(**eventlog)
+def log_event(accessor,courseID=None,**eventlog):
+    if not courseID:
+        courseID = accessor.courseID
 
-def capture_log(f):
+
+    logger.info("EVENT CREATED")
+#    logger.info(eventlog)
+    accessor.event_create(courseID=courseID,**eventlog)
+
+def capture_log(f,**params):
     
     # ADD HANDLER
     stream = StringIO.StringIO()
     handler = logging.StreamHandler(stream)
     handler.setFormatter(logging.Formatter(fmt='%(levelname)s: %(message)s'))
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
     # CALL FUNCTION
-    out = f()
+    out = f(**params)
     
     # REMOVE HANDLER
     logger.removeHandler(handler)
@@ -78,13 +87,20 @@ def capture_log(f):
     return (out,stream.getvalue())
 
 
-def run(accessor):
-    course = accessor.get_course(courseID=accessor.courseID)
-    print course['gracePeriod']
+def run(accessor,courseID=None,prompt=False):
+
+    if not courseID:
+        courseID = accessor.courseID
+
+    print "Processing Events"
+    
+    course = accessor.get_course(courseID=courseID)
     grace = int(course['gracePeriod'])
 
-    assignments = accessor.get_assignment()
-    events = accessor.event_get()
+    assignments = [a for a in accessor.get_assignment(courseID=courseID) if 'visibleToStudents' in a and int(a['visibleToStudents'])]
+    
+
+    events = accessor.event_get(courseID=courseID)
     
     now = int(time())
     
@@ -94,22 +110,38 @@ def run(accessor):
         delay = datehook['delay'] + datehook['grace'] * grace 
         job = datehook['job']
 
+        
+
         #
         #
         #
         if assignments and event not in assignments[0]:
-            print "WARNING: No event matches hook \'" + event + "\'"
+            logger.warn("No event matches hook \'" + event + "\'")
+
+        logger.info("")
+        logger.info("BEGIN Processing job %s for event %s in course %d",datehook['job'],datehook['event'],courseID)
         
+
+
         #
         # CALCULATE PENDING ASSIGNMENTS
         #
         triggered = [a['assignmentID'] for a in assignments if event in a and int(a[event]) + delay * delay_multiplier_to_seconds < now]
         executed = [e['assignmentID'] for e in events if e['job'] == job]
+
+        logger.info("Triggered: %s",str(triggered))
+        logger.info("Previously executed: %s",str(executed))
               
         pending = list(set(triggered)-set(executed))
         
         if pending:
-            logger.info("pending homeworks for %s: %s",job,str(pending))
+            logger.info("pending assignments for job %s course %d: %s",job,courseID,str(pending))
+            if prompt:
+                s = raw_input("Continue (y/n)?")
+                if "n" in s:
+                    print "skipping"
+                    continue
+
         
         #
         # EXECUTE JOB FOR PENDING ASSIGMNENTS
@@ -120,7 +152,7 @@ def run(accessor):
         for assignmentID in sorted(pending):
             
             # EXECUTE
-            (success,details) = capture_log(lambda:execute(accessor,assignmentID,**params))
+            (success,details) = capture_log(lambda:execute(accessor,assignmentID,courseID=courseID,**params))
             
             # ADD EVENT TO LOG
             eventlog = {'job':job,
@@ -129,5 +161,8 @@ def run(accessor):
                         'success':success,
                         'assignmentID':assignmentID} 
            
-            log_event(accessor,**eventlog)
+            log_event(accessor,courseID=courseID,**eventlog)
     
+
+        logger.info("END Processing job %s for event %s in course %d.",datehook['job'],datehook['event'],courseID)
+        logger.info("")

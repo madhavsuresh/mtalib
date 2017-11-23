@@ -1,108 +1,23 @@
 from ..api.api import *
 from ..algo import peer_assignment as assignment
 from ..jobs import grading
+from .. import config
 import random
 from ..algo.util import *
 import logging
-from pprint import pprint
-from copy import deepcopy
-
-
 
 logger = logging.getLogger()
 
-
-job_name = 'match'
-job_summary = 'Matching Submissions to Peers and TAs'
-
-    
-default_params = {'ta_load': 10,
-                  'peer_load': 3,
-                  'tas':None}
+c = config.api_server
 
 
-def run(accessor,assignmentID,courseID=None,**params):
-    if not courseID:
-        courseID = accessor.get_courseID(assignmentID)
-
-
-    # get parameters.
-    d_params = deepcopy(default_params)
-    d_params.update(params)
-    a_params = accessor.get_assignment_params(assignmentID,courseID=courseID)
-    d_params.update(a_params)
-    params = d_params
-
-
-
-    ta_load = params['ta_load']
-    peer_load = params['peer_load']
-    tas = params['tas']
-    if not tas:
-        tas = accessor.get_tas_from_course(courseID=courseID,markingLoad=1)
-
-
-    logger.info("Executing peer match with peer load %d and ta load %d and tas %s",peer_load,ta_load,tas)
-
-    subs = accessor.get_student_and_submission_ids(assignmentID,courseID=courseID)
-
-    excludes = {i:[j] for i,j in subs}
-
-    (peers,submissions) = zip(*subs)
-    peers = list(peers)
-    submissions = list(set(submissions))
-
-    students = accessor.get_students(courseID=courseID)
-
-
-    (matching,cover) = peermatch_simple(students,submissions,k=peer_load,excludes=excludes,cover_size = ta_load)
-
-
-    if matching:
-        pprint(matching)
-        insert_matching_from_accessor(accessor,assignmentID,matching,courseID=courseID)
-
-    if not matching:
-        logger.error("Failed to find matching.  Rerun.")
-        return False
-
-    if cover:
-        insert_ta_matches_from_accessor(accessor,assignmentID, cover, tas = tas,courseID=courseID)
-
-
-
-
-    return True
-
-    
-
-    
-    
-
-
-def get_tas_for_assignment(accessor,assignmentID,ta_matching=[]):
-
-    # find which TA to grade this.
-    tas = []
-    assignment_name = accessor.get_assignment(assignmentIDs = [assignmentID])[0]['name']
-
-    if ta_matching:
-        tas =  [ta for (ta,hw) in kvs_to_pairs(ta_matching) if hw in assignment_name]
-        logger.info("Matching \'%s\' to TAs %s",assignment_name,str(tas))
-    if not tas:
-        tas = accessor.get_tas_from_course(markingLoad=1)
-        logger.info("No TA assignment for \'%s\', assigning to all TAs.",
-                    assignment_name)
-
-    return tas
-
-
+exclude_from_automatic_ta_assignment = [284,282]
 
 
 def get_excludes(accessor,assignmentID):
 
     subs = accessor.get_student_and_submission_ids(assignmentID)
-    exclude = {i:[j] for i,j in subs}
+    exclude = {i:[j] for i,j in students + partners}
 
     return exclude
 
@@ -112,7 +27,7 @@ def execute_peermatch_original_from_accessor(accessor,assignmentID, cover = None
 
     subs = accessor.get_student_and_submission_ids(assignmentID)
 
-    exclude = {i:[j] for i,j in subs}
+    exclude = {i:[j] for i,j in students + partners}
 
 
     (peers,submissions) = zip(*subs)
@@ -144,19 +59,17 @@ def matching_to_mechta_matching(matchings):
   return [{'reviewerID': i, 'submissionID': j} for i,j in pairs]
 
 
-def insert_matching_from_accessor(accessor,assignmentID,matching,courseID=None):
-
+def insert_matching_from_accessor(accessor,assignmentID,matching):
   mechta_matching = matching_to_mechta_matching(matching)
-
   random.shuffle(mechta_matching)  # make sure the cover is random in the peers ordering.
-  logger.info("assigning %s reviews to %s users.",len([j for js in matching.values() for j in js]),len(matching.keys()))
+  logger.warn("assigning %s reviews to %s users.",len([j for js in matching.values() for j in js]),len(matching.keys()))
   return accessor.peermatch_create_bulk(assignmentID, mechta_matching)
   
 
 def insert_peermatch_from_accessor(accessor,assignmentID):
   (assignments,cover) = execute_peermatch_from_accessor(accessor,assignmentID)
   
-  logger.info('adding peer match')
+  logger.warn('adding peer match')
   insert_matching_from_accessor(accessor,assignmentID,assignments)
   
   return cover
@@ -164,37 +77,21 @@ def insert_peermatch_from_accessor(accessor,assignmentID):
 def insert_peermatch(assignmentID):
     return insert_peermatch_from_accessor(c,assignmentID)
 
-def insert_matches_from_accessor(accessor,assignmentID, user, subs,courseID=None):
 
-    matching = {user: subs}
-
-    logger.info('matching user %d to submissions %s',user,str(subs))
-
-    return insert_matching_from_accessor(accessor,assignmentID,matching)
-
-
-
-def insert_ta_matches_from_accessor(accessor,assignmentID, cover, tas = None,courseID=None):
+def insert_ta_matches_from_accessor(accessor,assignmentID, cover, tas = None):
     # if no tas are listed, get them from the class, and assign to all.
-    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
-
     if not tas:
-        tas = accessor.get_tas_from_course(courseID,markingLoad=1)
-            
+        courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
+        tas = accessor.get_tas_from_course(courseID)
+        
+        tas = list(set(tas) - set(exclude_from_automatic_ta_assignment))
+
+    
     matching = assignment.random_assignment(tas, cover)
 
-    logger.info('adding ta matching')
+    logger.warn('adding ta matching')
     return insert_matching_from_accessor(accessor,assignmentID,matching)
 
-
-def get_nonsubmitters(accessor,assignmentID):
-    users = accessor.get_users()
-    tas = accessor.get_tas_from_course(markingLoad=-1)
-    submitters = accessor.peermatch_get_peer_ids(assignmentID)
-    submissions = accessor.peermatch_get_submission_ids(assignmentID)
-    nonsubmitters = list(set(users) - set(tas) - set(submitters))
-    
-    return(nonsubmitters)
 
 # Input: recent: how many assignments to go back to see if a user is active.
 # Algorithm:
@@ -259,7 +156,7 @@ def get_active_peers(accessor,assignmentID,recent=4):
 # average peer review grades for assignments 1...assignmentID
 # returns {peer:avg_review_grade,...}
 def review_grade_tallies(accessor,assignmentID):
-    courseID = accessor.get_courseID(assignmentID)
+    courseID = int(accessor.get_courseID_from_assignmentID(assignmentID)['courseID'])
     tas = grading.tas_from_accessor(accessor,courseID)
 
     agrades = {}
@@ -317,7 +214,7 @@ def peermatch_from_accessor(accessor,assignmentID,k=3,cover_size=None):
     (assignments,cover) = peermatch(peers,submissions,k,exclude,cover_size)
     
     if assignment.peer_assignment_check(peers,assignments,cover,exclude):
-        logger.info("peer assignment is good, cover is good")
+        logger.warn("peer assignment is good, cover is good")
 
 
         return (assignments, cover)
@@ -351,7 +248,6 @@ def peermatch(peers,subs,k=3,excludes={},cover_size = None):
     # set cover to evenly distribute if not specified.
     if not cover_size:
         cover_size = math.ceil(m / k)
-    cover_size = min(cover_size,len(subs))
 
     cover = random.sample(subs,cover_size)
     remaining = list(set(subs)-set(cover))
@@ -370,9 +266,6 @@ def peermatch(peers,subs,k=3,excludes={},cover_size = None):
     k -= 1             # remaining assignments per peer.
     m = len(remaining) # remaining submissions.
     
-    if m is 0:
-        return (cover_assignments,cover)
-
     l = n * k // m     # reviews per submission rounded down.
     x = (n * k) % m    # submissions with extra reviews
     mm = m - x         # submissions with l (ell) reviews
@@ -420,75 +313,3 @@ def peermatch(peers,subs,k=3,excludes={},cover_size = None):
     assignments = {p: cover_assignments[p] + top_assignments[p] for p in peers}
 
     return assignments,cover
-
-
-# This creates a peer match.
-# Input:
-#   peers: list of peers, sorted by quality.
-# Output:
-#   assignments: {i:[j,...],...}
-#   cover: [j,...]
-# Algorithm:
-#   0. randomize the submissions.
-#   1. match peers to cover.
-#   2. match peers to remaining submissions.
-def peermatch_simple(peers,subs,k=3,excludes={},cover_size = None):
-
-
-    # flesh out excludes
-    excludes = {p : (excludes[p] if p in excludes else []) for p in peers}
-
-    n = len(peers)
-    m = len(subs)
-
-    # set cover to evenly distribute if not specified.
-    if not cover_size:
-        cover_size = math.ceil(m / k)
-    cover_size = min(cover_size,len(subs))
-
-    cover = random.sample(subs,cover_size)
-    remaining = list(set(subs)-set(cover))
-    random.shuffle(remaining)
-    
-    # assign cover.
-    logger.info("ASSIGNING ALL " + str(n) + " PEERS TO COVER OF SIZE " + str(cover_size))
-
-    cover_assignments = assignment.peer_assignment(peers,cover,1,excludes)
-    
-    # add cover_assignment to excludes.
-    excludes = {p: excludes[p] + cover_assignments[p] for p in peers}
-
-    k -= 1             # remaining assignments per peer.
-    m = len(remaining) # remaining submissions.
-
-    if m is 0:
-        return (cover_assignments,cover)
-
-    
-    # assign top to remaining submissions.
-    logger.info("ASSIGNING ALL %d PEERS TO REMAINING %d SUBMISSIONS (%d EACH)",n,m,k)
-    remaining_assignments = assignment.peer_assignment(peers,remaining,k,excludes)
-
-    # process failed, need to rerun.
-    if not remaining_assignments:
-        return ({},[])
-
-    # combine cover and residual assignment
-    assignments = {p: cover_assignments[p] + remaining_assignments[p] for p in peers}
-
-    return assignments,cover
-
-
-
-def missing_review_matchids(accessor, assignmentID, tas=None, courseID=None):
-    courseID = accessor.get_courseID(assignmentID,courseID=courseID)
-    mta_reviews = grading.mechta_reviews_from_accessor(accessor,assignmentID,courseID=courseID)
-    matchids = ensure_kkv(grading.mechta_reviews_to_matchids(mta_reviews))
-
-    missing = ensure_pairs(grading.missing_truths_from_accessor(accessor,assignmentID,tas=tas,courseID=courseID))
-    print "MISSING REVIEWS"
-    pprint(missing)
-    
-    matchIDs = sorted([int(matchids[i][j]) for (i,j) in missing]) 
-
-    return matchIDs
