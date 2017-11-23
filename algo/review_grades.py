@@ -5,27 +5,13 @@ import logging
 
 logger = logging.getLogger('mtalib.algos.review_grades')
 
+NO_ANSWER = 'NO_ANSWER'
+SKIP = 'SKIP'
+
 class NonScore:
-    NO_ANSWER = None
-    SKIP = None
+    NO_ANSWER = NO_ANSWER
+    SKIP = NO_ANSWER
     
-    def __str__(self):
-        return 'NonScore.' + self.__class__.__name__
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-class NO_ANSWER(NonScore):
-    pass
-
-class SKIP(NonScore):
-    pass
-
-NonScore.NO_ANSWER = NO_ANSWER()
-NonScore.SKIP = SKIP()
 
 
 ### quadratic loss function
@@ -52,6 +38,30 @@ def review_grade(truth,score,avg_score,skip_loss,loss=quadratic_loss):
 
     avg_loss = loss(truth,avg_score) 
 
+    
+    # if peer skipped the question then loss is skip_loss.
+    if score == SKIP:
+        return 1.0 - avg_loss
+    # if peer didn't answer then loss is total.
+    if score == NO_ANSWER:
+        return 0.0
+    if isinstance(score,Number):
+        return (1.0 - loss(truth,score))
+
+    logger.error('Invalid score for peer review grading: %s. ###',score)
+    return 0.0
+
+###
+### calculate peer review grade
+### truth:            TA score in [0,1]
+### score:            peer score in [0,1] (or negative for skip) 
+### avg_scores:       average of TA scores in [0,1]
+### skip_loss:        loss if the peer skipped the review, in [0,1].
+### loss:             loss function, e.g., quadratic_loss, in [0,1]->[0,1]
+def review_grade_old(truth,score,avg_score,skip_loss,loss=quadratic_loss):
+
+    avg_loss = loss(truth,avg_score) 
+
     # loss is u-shaped, so max_loss is at endpoints.
     max_loss = max(loss(truth,1.0),loss(truth,0.0))
     
@@ -63,10 +73,10 @@ def review_grade(truth,score,avg_score,skip_loss,loss=quadratic_loss):
 
     
     # if peer skipped the question then loss is skip_loss.
-    if score == NonScore.SKIP:
+    if score == SKIP:
         return 1.0 - skip_loss
     # if peer didn't answer then loss is total.
-    if score == NonScore.NO_ANSWER:
+    if score == NO_ANSWER:
         return 0.0
     if isinstance(score,Number):
         return (1.0 - loss(truth,score) * skip_loss / avg_loss) if avg_loss > 0.0 else 1.0
@@ -81,7 +91,7 @@ def review_grade(truth,score,avg_score,skip_loss,loss=quadratic_loss):
 #    loss:        function for calculating loss (out of 1)
 # returns:
 #    grades:      [(i,j,grade),...]
-def review_grades(reviews, truths, skip_loss,loss=quadratic_loss):
+def review_grades(reviews, truths, skip_loss,loss=quadratic_loss,average=None):
     reviews = ensure_tuples(reviews)
     # i: peers; j: submissions
 
@@ -100,7 +110,23 @@ def review_grades(reviews, truths, skip_loss,loss=quadratic_loss):
     # grade each review for which there is ground truth.
     grades = [(i,j,review_grade(truths[j],score,avg_score,skip_loss,loss)) for (i,j,score) in graded_reviews]
 
+    # raise grades up so that average is 'average'
+    if average:
+        jtoigs = ensure_kvs([(j,(i,g)) for (i,j,g) in grades])
+        
+        avgs = {j:avg([g for (_,g) in igs]) for j,igs in jtoigs.items()}
+
+        def raise_avg(g,avg):
+            return (1-(1-g)/(1-avg)*(1-average)) if avg < average else g
+
+        grades = [(i,j,raise_avg(g,avgs[j])) for (i,j,g) in grades]
+        
+
     return tuples_to_kkv(grades)
+
+
+
+
 
 def peer_grades(reviews, truths, skip_loss,loss=quadratic_loss):
 
@@ -108,6 +134,5 @@ def peer_grades(reviews, truths, skip_loss,loss=quadratic_loss):
 
     # a peer's grade is the average of 
     itog = {i:avg(jtog.values()) for (i,jtog) in ijtog.items()}
-
 
     return itog

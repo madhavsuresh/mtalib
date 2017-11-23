@@ -1,5 +1,6 @@
 from __future__ import division
 
+from math import sqrt
 
 # invert a dictionary of lists (assuming no duplicates)
 def invert_dictlist(d):
@@ -18,6 +19,28 @@ def duplicates(tocheck):
 # return the average of the numbers in the list.
 def avg(lst):
     return sum(lst)/len(lst) if len(lst) > 0 else 0.0
+
+def sse(lst,truth):
+    return avg([(x-truth)**2 for x in lst])
+
+def var(lst):
+    return sse(lst,avg(lst))
+
+def stddev(lst):
+    return sqrt(var(lst))
+
+
+# return a dictionary {key(v):v,...} for list [v,...]
+def key_on(lst,key,dropnone=True):
+    k = key if callable(key) else lambda x:x[key]
+
+    dct = {k(x):x for x in lst}
+
+    if dropnone and None in dct:
+        del dct[None]
+    return dct
+
+
 
 # input: {i => j => v,...}
 # output: [(i,j,v),...]

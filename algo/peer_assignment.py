@@ -8,6 +8,99 @@ from pprint import pprint
 
 logger = logging.getLogger()
 
+
+
+
+default_peer_load=3
+default_grader_load=10
+
+
+#Parameters: 
+#    {'peer_load': int,         # number of reviews to assign per peer.
+#     'grader_load': int}       # number of total reviews to assign to TAs. 
+#
+#JSON in: 
+#   {'graders':[userID,...],   # list of grader userIDs
+#    'peers':[userID,...],     # list of peer userIDs
+#    'submissions':[(userID,submissionID),...]} 
+#                              # list of pairs of submitter userID 
+#                              #   and submissionIDs
+#JSON out: 
+#   {'matching':[(userID,submissionID),...],
+#                              # list of pairs of reviewer userID 
+#                              #   and submissionID.
+#    'log':string,             # information about status of matching.
+#    'success':boolean}        # succeeded or not
+
+def run(graders,peers,submissions,peer_load=default_peer_load,grader_load=default_grader_load):
+
+    # get a list of submissions.
+    subs = list(set([j for (_,j) in submissions]))
+
+
+    # get a dict that has invalid submissions for each peer.
+    excludes = ensure_kvs(submissions)
+    excludes = {p : (excludes[p] if p in excludes else []) for p in peers}
+
+    n = len(peers)
+    m = len(subs)
+    k = peer_load
+    l = min(grader_load,m-k+1)
+
+    # randomize order of subbmissions. 
+    random.shuffle(subs)
+        
+    cover = subs[:l]
+    remaining = subs[l:]
+
+    # assign cover.
+    logger.info("ASSIGNING ALL %d PEERS TO COVER OF SIZE %d",n,l)
+
+    cover_assignments = peer_assignment(peers,cover,1,excludes)
+
+
+    if not cover_assignments:
+        return {'matching':[],
+                'log':'Failed to match peers to cover.',
+                'success':False}
+        
+    
+    # add cover_assignment to excludes.
+    excludes = {p: excludes[p] + cover_assignments[p] for p in peers}
+
+    k -= 1             # remaining assignments per peer.
+    m = len(remaining) # remaining submissions.
+
+    # assign top to remaining submissions.
+    logger.info("ASSIGNING ALL " + str(n) + " PEERS TO REMAINING " + str(m) + " SUBMISSIONS")
+    remaining_assignments = peer_assignment(peers,remaining,k,excludes)
+
+    if not remaining_assignments:
+        return {'matching':[],
+                'log':'Failed to match peers to remaining submissions (not in cover).',
+                'success':False}
+
+      
+    # combine cover and residual assignment
+    peer_assignments = {p: cover_assignments[p] + remaining_assignments[p] for p in peers}
+
+    # randomize order
+    for assignments in peer_assignments.values():
+        random.shuffle(assignments)
+
+    grader_assignments = random_assignment(graders,cover)
+    
+    matching = ensure_pairs(peer_assignments) + ensure_pairs(grader_assignments)
+
+
+    return {'matching':matching,
+            'log':'Successfully matched peers and graders to submissions.',
+            'success':True}
+
+
+
+
+
 ####
 # GENERATE PEER ASSIGNMENT
 # Input:
@@ -42,7 +135,7 @@ def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000
         cover_size = math.ceil(n/load)
 
     if len(cover) < cover_size:
-        print "extending cover"
+        logger.info("extending cover")
         # get random elements from 'submissions \ cover'
         gen_cover = random.sample(set(submissions)-set(cover),int(math.ceil(n/load)))
         # add to cover.
@@ -57,7 +150,7 @@ def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000
 #    print "COVER"
 #    pprint(kvs_invert(cover_assignments))
     if n / cover_size > load:
-        logger.warn("cover load %.2f, regular load %d",n / cover_size,load) 
+        logger.info("cover load %.2f, regular load %d",n / cover_size,load) 
         excess = []
 
     # if covered_assignments have more than there share of reviewers, then 
@@ -107,10 +200,10 @@ def peer_assignment_covered(peers,submissions,k,cover,excludes={},num_tries=1000
 # peer_assignment_excess output: (assignments,excess)
 #    - assignments: {peer id : [submission_ids]} 
 #    - excess: [submission ids] that need one more match. 
-def peer_assignment(peers,submissions,k,excludes={},num_tries=1000,once=[]):
+def peer_assignment(peers,submissions,k,excludes={},num_tries=10000,once=[]):
     return(peer_assignment_excess(peers,submissions,k,excludes,num_tries,once)[0])
 
-def peer_assignment_excess(peers,submissions,k,excludes={},num_tries=1000,once=[]):
+def peer_assignment_excess(peers,submissions,k,excludes={},num_tries=10000,once=[]):
     n = len(peers)
     m = len(submissions)
 
@@ -125,11 +218,11 @@ def peer_assignment_excess(peers,submissions,k,excludes={},num_tries=1000,once=[
     submissions_copy = copy(submissions)
     diff = len(peer_reps)-len(submission_reps)
 
-    count = 0
-    # try to get a matching with out duplicates or excluded assignments.
-    for _ in range(num_tries):
 
-        count += 1
+    # try to get a matching with out duplicates or excluded assignments.
+    for count in range(num_tries):
+
+
 
 
         # add random extra submissions because submission_reps is rounded down.
@@ -149,9 +242,12 @@ def peer_assignment_excess(peers,submissions,k,excludes={},num_tries=1000,once=[
             continue
 
 
-        logger.warn("matching found in %s tries.",count)
+        logger.info("matching found in %s tries.",count)
         return (assignments,excess)
  
+
+    logger.error("failed to find matching in %s tries.",num_tries)
+
     # we failed to find an assignment given the in num_tries tries.
     return ({},[])
 
@@ -217,6 +313,7 @@ def random_assignment(reviewers, submissions_to_cover):
     matches = [(i,j) for i,j in zip(extended_reviewers,submissions_to_cover)]
 
     return pairs_to_kvs(matches)
+
 # ALIAS: RANDOM_TA_ASSIGNMENTS (depricated)
 random_ta_assignment = random_assignment
 

@@ -2,11 +2,40 @@ from __future__ import division
 from util import *
 from math import sqrt
 
+
+default_num_rounds = 20
+default_bonus = 5.0
+
+# Parameters: 
+#     {'num_rounds': int,          # number of repetitions of EM 
+#                                  #   fixed-point algorithm.
+#     {'bonus': float}             # bonus points for not appealing
+
+# JSON in: 
+#     {'graders': [userID,...],    # list of grader userIDs
+#      'reviews': [(userID,submissionID,review),...],
+#                                  # review = [(score {0-1},notes),...]
+#      'rubric':[weight,...]}      # list of weights     
+
+# JSON out: 
+#    {'submission_grades': [(submissionID,grade),...],
+#                                  # list of submissions and grades
+#     'log': string,               # information about grading
+#     'success': boolean}           # succeeded or not.
+
+def run(graders,reviews,rubric,num_rounds,bonus):
+    
+    return 1
+
+
+
 MIN_VARIANCE = 0.001    # don't let 1/variance blow up if a peer is very accurate.
 DEFAULT_VARIANCE = 1.0  # this does not matter as long as it is the same.
 
+
 def safe_divide(num,denom,infinity):
     return min(num / denom,infinity) if denom != 0 else infinity 
+
 
 
 
